@@ -46,4 +46,4 @@ ENV PORT=8080
 EXPOSE $PORT
 
 # Define the command to start your application
-CMD ["python", "app.py"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
