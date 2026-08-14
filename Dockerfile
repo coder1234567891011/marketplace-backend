@@ -19,7 +19,7 @@ COPY requirements.tx[t] ./requirements.txt
 RUN pip install --upgrade pip &&     if [ -f requirements.txt ]; then         pip install -r requirements.txt;     fi
 
 # Copy the rest of the application source code
-COPY . .
+COPY src/ .
 
 # Stage 2: Create the Final Production Image
 # We use python:3.11 as the runtime image with all the necessary tools.
@@ -46,4 +46,4 @@ ENV PORT=8080
 EXPOSE $PORT
 
 # Define the command to start your application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--env-file", ".env"]
