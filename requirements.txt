@@ -1,3 +1,7 @@
 fastapi
 sentry_sdk
 uvicorn
+pydantic
+dotenv
+pyjwt
+cryptography
