@@ -1,9 +1,13 @@
 from fastapi import FastAPI, Depends, Header, HTTPException
 import sentry_sdk
-import jwt
 
-from auth.auth import verify_supabase_jwt
-from utils.settings import Settings
+from auth.auth import get_current_user
+from routes.user import router as user_router
+from routes.order import router as order_router
+from routes.rating import router as rating_router
+from routes.listing import router as listing_router
+from routes.collection import router as collection_router
+from routes.address import router as address_router
 
 sentry_sdk.init(
     dsn="https://98f0d2e62420546cd35670cfee7f8997@o4511898216562688.ingest.us.sentry.io/4511898225672192",
@@ -18,16 +22,12 @@ sentry_sdk.init(
 )
 
 app = FastAPI()
-settings = Settings()
-
-def get_current_user(authorization: str = Header(...)) -> dict:
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-    token = authorization.split(" ", 1)[1]
-    try:
-        return verify_supabase_jwt(token, settings)
-    except jwt.PyJWTError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+app.include_router(user_router)
+app.include_router(order_router)
+app.include_router(rating_router)
+app.include_router(listing_router)
+app.include_router(collection_router)
+app.include_router(address_router)
 
 @app.get("/me")
 def read_me(user: dict = Depends(get_current_user)):
