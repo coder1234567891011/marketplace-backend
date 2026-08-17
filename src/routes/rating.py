@@ -11,7 +11,7 @@ router = APIRouter(
     tags=["ratings"],
 )
 
-@router.get("/{user_id}")
+@router.get("user/{user_id}")
 async def get_user_ratings(user_id: uuid.UUID , id: uuid.UUID = Depends(get_current_user)) -> list[RatingRead]:
     user_ratings = await db_get_user_ratings(user_id)
     return user_ratings

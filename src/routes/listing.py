@@ -11,7 +11,7 @@ router = APIRouter(
     tags=["listings"],
 )
 
-@router.get("/{user_id}")
+@router.get("user/{user_id}")
 async def get_user_listings(user_id: uuid.UUID, id: uuid.UUID = Depends(get_current_user)) -> list[ListingRead]:
     listings = await db_get_all_user_listings(user_id)
     return listings

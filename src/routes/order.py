@@ -12,27 +12,27 @@ router = APIRouter(
     tags=["order"],
 )
 
-@router.get("/{user_id}")
-async def get_user_orders(user_id : uuid.UUID, id: uuid.UUID = Depends(get_current_user)):
+@router.get("user/{user_id}")
+async def get_user_orders(user_id : uuid.UUID, id: uuid.UUID = Depends(get_current_user)) -> list[OrderRead]:
     orders = await db_get_all_user_orders(user_id)
     return orders
 
 @router.get("/{order_id}")
-async def get_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user)):
+async def get_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user)) -> OrderRead:
     order = await db_get_order(order_id)
     return order
 
 @router.post("/orders")
-async def create_order(order:OrderRead, user_id: uuid.UUID = Depends(get_current_user)):
+async def create_order(order:OrderRead, user_id: uuid.UUID = Depends(get_current_user)) -> OrderRead:
     order = await db_create_order(order)
     return order
 
 @router.put("/{order_id}")
-async def update_order(order_id: uuid.UUID, updated_order: OrderRead, user_id: uuid.UUID = Depends(get_current_user)):
+async def update_order(order_id: uuid.UUID, updated_order: OrderRead, user_id: uuid.UUID = Depends(get_current_user)) -> OrderRead:
     order = await db_update_order(order_id, updated_order)
     return order
 
 @router.delete("/{order_id}")
-async def delete_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user)):
+async def delete_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user)) -> None:
     order = db_delete_order(order_id)
     return None
