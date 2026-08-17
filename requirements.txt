@@ -7,3 +7,4 @@ pyjwt
 cryptography
 sqlalchemy
 supabase
+httpx

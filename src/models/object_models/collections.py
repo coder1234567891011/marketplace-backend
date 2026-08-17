@@ -26,7 +26,7 @@ class CollectionRead(_ORMBase, CollectionCreate):
 # ----------------------------------------------------------------
 # COLLECTION ITEMS
 # ----------------------------------------------------------------
-class CollectionItemCreate(BaseModel):
+class  CollectionItemCreate(BaseModel):
     card_id: uuid.UUID
     condition: CardCondition | None = None
     is_foil: bool = False

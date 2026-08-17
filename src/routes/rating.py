@@ -22,8 +22,8 @@ async def get_rating(rating_id: uuid.UUID, id: uuid.UUID = Depends(get_current_u
     return rating
 
 @router.post("/", response_model=RatingCreate)
-async def create_rating(rating: RatingCreate, user_id: uuid.UUID = Depends(get_current_user)) -> RatingCreate:
-    new_rating = await db_create_rating(rating, user_id)
+async def create_rating(rating: RatingCreate, id: uuid.UUID = Depends(get_current_user)) -> RatingCreate:
+    new_rating = await db_create_rating(rating)
     return new_rating
 
 @router.delete("/{rating_id}")

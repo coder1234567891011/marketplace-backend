@@ -11,7 +11,7 @@ router = APIRouter(
     tags=["addresses"],
 )
 
-@router.get("user/{user_id}")
+@router.get("/user/{user_id}")
 async def get_user_addresses(user_id: uuid.UUID,id: uuid.UUID = Depends(get_current_user)) -> list[AddressRead]:
     addresses = await db_get_user_addresses(user_id)
     return addresses
@@ -22,8 +22,8 @@ async def get_address(address_id: uuid.UUID,id: uuid.UUID = Depends(get_current_
     return address
 
 @router.post("/")
-async def create_address(address: AddressCreate, id: uuid.UUID = Depends(get_current_user)) -> AddressCreate:
-    new_address = await db_create_address(address)
+async def create_address(address: AddressCreate, user_id: uuid.UUID = Depends(get_current_user)) -> AddressCreate:
+    new_address = await db_create_address(address, user_id)
     return new_address
 
 @router.put("/{address_id}")
@@ -33,5 +33,5 @@ async def update_address(address: AddressCreate, address_id: uuid.UUID, id: uuid
 
 @router.delete("/{address_id}")
 async def delete_address(address_id: uuid.UUID, id: uuid.UUID = Depends(get_current_user)) -> None:
-    address = db_delete_address(address_id)
+    address = await db_delete_address(address_id)
     return None
