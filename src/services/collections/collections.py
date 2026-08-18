@@ -40,9 +40,8 @@ async def db_delete_collection(collection_id: uuid.UUID) -> None:
 
 async def db_get_collection_items(collection_id: uuid.UUID) -> list[CollectionItemRead]:
     collection_list : list[CollectionItemRead] = []
-    collection_item = table.select("*").eq("id", collection_id).execute()
+    collection_item = items.select("*").eq("collection_id", collection_id).execute()
     for item in collection_item.data:
-        print(item)
         collection_list.append(CollectionItemRead(**item))
     return collection_list
 
