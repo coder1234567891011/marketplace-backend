@@ -5,3 +5,6 @@ pydantic
 dotenv
 pyjwt
 cryptography
+sqlalchemy
+supabase
+httpx
