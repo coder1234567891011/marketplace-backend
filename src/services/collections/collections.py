@@ -2,6 +2,7 @@
 import uuid
 
 from models.database import CollectionItem
+from models.object_models.cards import CardRead
 from models.object_models.collections import CollectionCreate, CollectionRead, CollectionItemCreate, CollectionItemRead
 from services.persistence.database import SupabaseClient
 
@@ -42,8 +43,18 @@ async def db_get_collection_items(collection_id: uuid.UUID) -> list[CollectionIt
     collection_list : list[CollectionItemRead] = []
     collection_item = items.select("*").eq("collection_id", collection_id).execute()
     for item in collection_item.data:
-        collection_list.append(CollectionItemRead(**item))
+        card = cards.select("*").eq("id", item["card_id"]).execute()
+        new_card = CardRead(
+            **card.data[0]
+        )
+        collection_list.append(CollectionItemRead(card=new_card, **item))
     return collection_list
+
+async def db_get_collection_item(item_id: uuid.UUID) -> CollectionItemRead:
+    collection_item = items.select("*").eq("id", item_id).execute()
+    card = cards.select("*").eq("id", collection_item.data[0]["card_id"]).execute()
+    new_card = CardRead(**card.data[0])
+    return CollectionItemRead(card=new_card, **collection_item.data[0])
 
 async def db_create_collection_items(collection: list[CollectionItemCreate], collection_id: str) -> list[CollectionItemCreate]:
     collection_list : list[CollectionItemCreate] = []
@@ -54,3 +65,13 @@ async def db_create_collection_items(collection: list[CollectionItemCreate], col
         new_collection_item = items.insert(payload).execute()
         collection_list.append(new_collection_item.data[0])
     return collection_list
+
+async def db_update_collection_item(collection_item: CollectionItemCreate, item_id: uuid.UUID) -> CollectionItemCreate:
+    payload = collection_item.model_dump()
+    payload["card_id"] = str(payload["card_id"])
+    updated_item = items.update(payload).eq("id", item_id).execute()
+    return CollectionItemCreate(**updated_item.data[0])
+
+async def db_delete_collection_item(item_id: uuid.UUID) -> None:
+    delete_collection_item = items.delete().eq("id", item_id).execute()
+    return None

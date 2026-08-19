@@ -12,9 +12,9 @@ router = APIRouter(
     tags=["order"],
 )
 
-@router.get("user/{user_id}")
-async def get_user_orders(user_id : uuid.UUID, id: uuid.UUID = Depends(get_current_user)) -> list[OrderRead]:
-    orders = await db_get_all_user_orders(user_id)
+@router.get("/user/{user_id}/{role}")
+async def get_user_orders(user_id : uuid.UUID, role: str,  id: uuid.UUID = Depends(get_current_user)) -> list[OrderRead]:
+    orders = await db_get_all_user_orders(user_id, role)
     return orders
 
 @router.get("/{order_id}")
@@ -22,7 +22,7 @@ async def get_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_curren
     order = await db_get_order(order_id)
     return order
 
-@router.post("/orders")
+@router.post("/")
 async def create_order(order:OrderRead, user_id: uuid.UUID = Depends(get_current_user)) -> OrderRead:
     order = await db_create_order(order)
     return order
@@ -34,5 +34,5 @@ async def update_order(order_id: uuid.UUID, updated_order: OrderRead, user_id: u
 
 @router.delete("/{order_id}")
 async def delete_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user)) -> None:
-    order = db_delete_order(order_id)
+    order = await db_delete_order(order_id)
     return None

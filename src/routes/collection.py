@@ -3,10 +3,10 @@ import uuid
 from fastapi import Depends, APIRouter
 
 from app import get_current_user
-from models.database import CollectionItem
 from models.object_models.collections import CollectionCreate, CollectionRead, CollectionItemRead, CollectionItemCreate
 from services.collections.collections import db_create_collection, db_delete_collection, db_get_collection, \
-    db_get_users_collection, db_update_collection, db_create_collection_items, db_get_collection_items
+    db_get_users_collection, db_update_collection, db_create_collection_items, db_get_collection_items, \
+    db_get_collection_item, db_update_collection_item, db_delete_collection_item
 
 router = APIRouter(
     prefix="/collections",
@@ -44,8 +44,8 @@ async def get_all_collection_items(collection_id: uuid.UUID, id: uuid.UUID = Dep
     return collection_items
 
 @router.get("/items/{item_id}")
-async def get_collection_item(item_id: uuid.UUID = Depends(get_current_user)) -> CollectionItemRead:
-    collection_item = db_get_collection_item(item_id)
+async def get_collection_item(item_id: uuid.UUID, id: uuid.UUID = Depends(get_current_user)) -> CollectionItemRead:
+    collection_item = await db_get_collection_item(item_id)
     return collection_item
 
 @router.post("/{collection_id}/items")

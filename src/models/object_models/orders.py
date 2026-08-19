@@ -15,7 +15,7 @@ class OrderItemRead(_ORMBase):
 
 
 class OrderRead(_ORMBase):
-    id: uuid.UUID
+    id: uuid.UUID | None
     buyer_id: uuid.UUID
     seller_id: uuid.UUID
     subtotal_cents: int
@@ -24,4 +24,4 @@ class OrderRead(_ORMBase):
     status: OrderStatus
     tracking_number: str | None
     items: list[OrderItemRead]
-    created_at: datetime
+    created_at: datetime | None
