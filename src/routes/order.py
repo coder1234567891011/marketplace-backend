@@ -1,38 +1,29 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from app import get_current_user
-from models.object_models.orders import OrderRead
-from services.orders.orders import db_get_order, db_create_order, db_get_all_user_orders, db_update_order, \
-    db_delete_order
+from auth.auth import AuthUser
+from models.model import Page
+from models.object_models.orders import OrderRead, OrderRole
+from services.orders.orders import get_my_orders, get_order
+from services.persistence.database import SessionDep
+from utils.pagination import CursorParam, LimitParam
 
 router = APIRouter(
     prefix="/orders",
-    tags=["order"],
+    tags=["orders"],
 )
 
-@router.get("/user/{user_id}/{role}")
-async def get_user_orders(user_id : uuid.UUID, role: str,  id: uuid.UUID = Depends(get_current_user)) -> list[OrderRead]:
-    orders = await db_get_all_user_orders(user_id, role)
-    return orders
+
+@router.get("")
+async def list_my_orders(
+    current: AuthUser, session: SessionDep,
+    role: OrderRole = OrderRole.buyer, limit: LimitParam = 50, cursor: CursorParam = None,
+) -> Page[OrderRead]:
+    orders, next_cursor = await get_my_orders(session, current, role, limit, cursor)
+    return Page(items=[OrderRead.model_validate(o) for o in orders], next_cursor=next_cursor)
+
 
 @router.get("/{order_id}")
-async def get_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user)) -> OrderRead:
-    order = await db_get_order(order_id)
-    return order
-
-@router.post("/")
-async def create_order(order:OrderRead, user_id: uuid.UUID = Depends(get_current_user)) -> OrderRead:
-    order = await db_create_order(order)
-    return order
-
-@router.put("/{order_id}")
-async def update_order(order_id: uuid.UUID, updated_order: OrderRead, user_id: uuid.UUID = Depends(get_current_user)) -> OrderRead:
-    order = await db_update_order(order_id, updated_order)
-    return order
-
-@router.delete("/{order_id}")
-async def delete_order(order_id: uuid.UUID, user_id: uuid.UUID = Depends(get_current_user)) -> None:
-    order = await db_delete_order(order_id)
-    return None
+async def read_order(order_id: uuid.UUID, current: AuthUser, session: SessionDep) -> OrderRead:
+    return OrderRead.model_validate(await get_order(session, current, order_id))

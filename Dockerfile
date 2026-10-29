@@ -1,49 +1,33 @@
-# Stage 1: Build the Application
-# We use python:3.11 as the base for building and installing dependencies.
-FROM python:3.11 AS build
+# Stage 1: install dependencies into a virtualenv
+FROM python:3.11-slim AS build
 
-# Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Install system dependencies if needed
-RUN apt-get update && apt-get install -y --no-install-recommends     build-essential     && rm -rf /var/lib/apt/lists/*
-
-# Create a virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy requirements.txt if it exists (using wildcard to avoid build failure)
-COPY requirements.tx[t] ./requirements.txt
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Install Python dependencies only if requirements.txt exists
-RUN pip install --upgrade pip &&     if [ -f requirements.txt ]; then         pip install -r requirements.txt;     fi
-
-# Copy the rest of the application source code
 COPY src/ .
 
-# Stage 2: Create the Final Production Image
-# We use python:3.11 as the runtime image with all the necessary tools.
-FROM python:3.11
+# Stage 2: runtime image
+FROM python:3.11-slim
 
-# Set the working directory
 WORKDIR /usr/src/app
 
-# Copy the virtual environment from the build stage
 COPY --from=build /opt/venv /opt/venv
-
-# Copy the application code
 COPY --from=build /usr/src/app .
 
-# Set the virtual environment as the active Python environment
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Create a non-root user to run the application
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /usr/src/app
 USER appuser
 
-# Expose the port your app runs on
 ENV PORT=8080
 EXPOSE $PORT
 
-# Define the command to start your application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--env-file", ".env"]
+# Configuration comes from Fly secrets (environment variables), not a baked-in .env file.
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]

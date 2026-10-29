@@ -1,86 +1,32 @@
+"""
+Read access to orders. Orders are created by the checkout flow (Phase 4),
+never directly from client input.
+"""
 import uuid
+from collections.abc import Sequence
 
-from models.object_models.orders import OrderRead, OrderItemRead
-from services.persistence.database import SupabaseClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-client = SupabaseClient()
-table = client.supabase_client.table('orders')
-items = client.supabase_client.table('order_items')
+from auth.auth import CurrentUser
+from models.database import Order
+from models.object_models.orders import OrderRole
+from utils.errors import NotFound
+from utils.pagination import paginate
 
-async def db_get_all_user_orders(user_id: uuid.UUID, role) -> list[OrderRead]:
-    order_list = []
-    orders = table.select("*").eq(f'{role}_id', user_id).execute().data
-    print(orders)
-    for order in orders:
-        item_list = []
-        new_items = items.select("*").eq('order_id', order['id']).execute().data
-        for new_item in new_items:
-            item_list.append(OrderItemRead(**new_item))
-        order_list.append(OrderRead(items=item_list,**order))
 
-    return order_list
+async def get_my_orders(
+    session: AsyncSession, current: CurrentUser, role: OrderRole, limit: int, cursor: str | None
+) -> tuple[Sequence[Order], str | None]:
+    party = Order.buyer_id if role == OrderRole.buyer else Order.seller_id
+    stmt = select(Order).where(party == current.id).options(selectinload(Order.items))
+    return await paginate(session, stmt, Order, limit, cursor)
 
-async def db_get_order(order_id: uuid.UUID) -> OrderRead:
-    order = table.select("*").eq("id", order_id).execute().data[0]
-    order_items = items.select("*").eq("order_id", order['id']).execute().data
-    item_list = []
-    for item in order_items:
-        item_list.append(OrderItemRead(**item))
-    return OrderRead(items = item_list,**order)
 
-async def db_create_order(order : OrderRead) -> OrderRead:
-    payload = order.model_dump(exclude={"items"}, exclude_none=True)
-    payload['buyer_id'] = str(payload['buyer_id'])
-    payload['seller_id'] = str(payload['seller_id'])
-    new_order = table.insert(payload).execute().data[0]
-    new_order_id = new_order['id']
-    item_list=[]
-    for item in order.items:
-        item_payload = item.model_dump(mode="json", exclude_none=True)
-        item_payload['order_id'] = str(new_order_id)
-        item_payload['listing_id'] = str(item_payload['listing_id'])
-        new_item = items.insert(item_payload).execute().data[0]
-        item_list.append(OrderItemRead(**new_item))
-
-    return OrderRead(id=new_order['id'],
-                     buyer_id=new_order['buyer_id'],
-                     seller_id=new_order['seller_id'],
-                     subtotal_cents=new_order['subtotal_cents'],
-                     shipping_cents=new_order['shipping_cents'],
-                     total_cents=new_order['total_cents'],
-                     status=new_order['status'],
-                     tracking_number=new_order['tracking_number'],
-                     items=item_list,
-                     created_at=new_order['created_at']
-                     )
-
-async def db_update_order(order_id: uuid.UUID, order: OrderRead) -> OrderRead:
-    payload = order.model_dump(exclude={"items"}, exclude_none=True)
-    payload['id'] = str(order_id)
-    payload['buyer_id'] = str(payload['buyer_id'])
-    payload['seller_id'] = str(payload['seller_id'])
-    new_order = table.update(payload).eq("id", order_id).execute().data[0]
-    item_list = []
-    for item in order.items:
-        item_payload = item.model_dump(mode="json", exclude_none=True)
-        item_payload['order_id'] = str(order_id)
-        item_payload['listing_id'] = str(item_payload['listing_id'])
-        new_item = items.update(item_payload).eq('listing_id',item_payload['listing_id']).execute().data[0]
-        item_list.append(OrderItemRead(**new_item))
-
-    return OrderRead(id=new_order['id'],
-                     buyer_id=new_order['buyer_id'],
-                     seller_id=new_order['seller_id'],
-                     subtotal_cents=new_order['subtotal_cents'],
-                     shipping_cents=new_order['shipping_cents'],
-                     total_cents=new_order['total_cents'],
-                     status=new_order['status'],
-                     tracking_number=new_order['tracking_number'],
-                     items=item_list,
-                     created_at=new_order['created_at']
-                     )
-
-async def db_delete_order(order_id: uuid.UUID) -> None:
-    delete_items = items.delete().eq("order_id", str(order_id)).execute()
-    delete_order = table.delete().eq("id", str(order_id)).execute()
-    return None
+async def get_order(session: AsyncSession, current: CurrentUser, order_id: uuid.UUID) -> Order:
+    order = await session.scalar(select(Order).where(Order.id == order_id).options(selectinload(Order.items)))
+    # Only the buyer and seller can see an order.
+    if order is None or current.id not in (order.buyer_id, order.seller_id):
+        raise NotFound("Order not found")
+    return order

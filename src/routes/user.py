@@ -1,78 +1,39 @@
 import uuid
-from typing import Any
 
-from fastapi import Depends, APIRouter
+from fastapi import APIRouter, status
 
-from auth.auth import get_current_user
-from models.object_models.user import UserRead, UserUpdate
-from services.user.user import db_delete_user, db_create_user, db_get_user, db_update_user
+from auth.auth import AuthUser
+from models.object_models.user import UserCreate, UserRead, UserUpdate
+from services.persistence.database import SessionDep
+from services.user.user import create_user, delete_user, get_user, update_user
+from utils import limits
 
 router = APIRouter(
     prefix="/users",
-    tags=["user"],
+    tags=["users"],
 )
 
-@router.get("/{user_id}", response_model=UserRead)
-async def read_user(user_id: uuid.UUID, req_id : uuid.UUID = Depends(get_current_user)) -> UserRead | None:
-    if str(user_id) == str(req_id["sub"]):
-        user = await db_get_user(user_id)
-        user_read = UserRead(
-            id=user.id,
-            username=user.username,
-            display_name=user.display_name,
-            avatar_url=user.avatar_url,
-            bio=user.bio,
-            account_status=user.account_status,
-            seller_rating_avg=user.seller_rating_avg,
-            seller_rating_count=user.seller_rating_count,
-            buyer_rating_avg=user.buyer_rating_avg,
-            buyer_rating_count=user.buyer_rating_count,
-            total_sales=user.total_sales,
-            created_at=user.created_at,
-        )
-        return user_read
-    else:
-        return None
 
-@router.post("/", response_model=UserRead)
-async def create_new_user(request: UserRead, user_id: uuid.UUID = Depends(get_current_user)) -> UserRead:
-    user = await db_create_user(user_id, request)
-    user_read = UserRead(
-        id=user.id,
-        username=user.username,
-        display_name=user.display_name,
-        avatar_url=user.avatar_url,
-        bio=user.bio,
-        account_status=user.account_status,
-        seller_rating_avg=user.seller_rating_avg,
-        seller_rating_count=user.seller_rating_count,
-        buyer_rating_avg=user.buyer_rating_avg,
-        buyer_rating_count=user.buyer_rating_count,
-        total_sales=user.total_sales,
-        created_at=user.created_at,
-    )
-    return user_read
+@router.get("/me")
+async def read_me(current: AuthUser, session: SessionDep) -> UserRead:
+    return UserRead.model_validate(await get_user(session, current.id))
 
-@router.put("/{user_id}", response_model=UserRead)
-async def update_user(request : UserUpdate, user_id: uuid.UUID = Depends(get_current_user)) -> UserRead:
-    user = await db_update_user(user_id, request)
-    user_read = UserRead(
-        id=user.id,
-        username=user.username,
-        display_name=user.display_name,
-        avatar_url=user.avatar_url,
-        bio=user.bio,
-        account_status=user.account_status,
-        seller_rating_avg=user.seller_rating_avg,
-        seller_rating_count=user.seller_rating_count,
-        buyer_rating_avg=user.buyer_rating_avg,
-        buyer_rating_count=user.buyer_rating_count,
-        total_sales=user.total_sales,
-        created_at=user.created_at,
-    )
-    return user_read
 
-@router.delete("/{user_id}", response_model=None)
-async def delete_user(user_id: uuid.UUID = Depends(get_current_user)) -> None:
-    await db_delete_user(user_id["sub"])
-    return None
+@router.post("/me", status_code=status.HTTP_201_CREATED, dependencies=[limits.PROFILE_CREATE])
+async def create_me(request: UserCreate, current: AuthUser, session: SessionDep) -> UserRead:
+    return UserRead.model_validate(await create_user(session, current, request))
+
+
+@router.patch("/me", dependencies=[limits.PROFILE_UPDATE])
+async def update_me(request: UserUpdate, current: AuthUser, session: SessionDep) -> UserRead:
+    return UserRead.model_validate(await update_user(session, current, request))
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(current: AuthUser, session: SessionDep) -> None:
+    await delete_user(session, current)
+
+
+@router.get("/{user_id}")
+async def read_user(user_id: uuid.UUID, session: SessionDep) -> UserRead:
+    return UserRead.model_validate(await get_user(session, user_id))

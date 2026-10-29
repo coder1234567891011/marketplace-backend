@@ -1,37 +1,47 @@
 import uuid
 
-from fastapi import Depends, APIRouter
+from fastapi import APIRouter, status
 
-from app import get_current_user
+from auth.auth import AuthUser
 from models.object_models.addresses import AddressCreate, AddressRead
-from services.addresses.addresses import db_create_address, db_delete_address, db_get_address, db_get_user_addresses, db_update_address
+from services.addresses.addresses import (
+    create_address,
+    delete_address,
+    get_address,
+    get_my_addresses,
+    update_address,
+)
+from services.persistence.database import SessionDep
+from utils import limits
 
 router = APIRouter(
     prefix="/addresses",
     tags=["addresses"],
 )
 
-@router.get("/user/{user_id}")
-async def get_user_addresses(user_id: uuid.UUID,id: uuid.UUID = Depends(get_current_user)) -> list[AddressRead]:
-    addresses = await db_get_user_addresses(user_id)
-    return addresses
+
+@router.get("")
+async def list_my_addresses(current: AuthUser, session: SessionDep) -> list[AddressRead]:
+    return [AddressRead.model_validate(a) for a in await get_my_addresses(session, current)]
+
 
 @router.get("/{address_id}")
-async def get_address(address_id: uuid.UUID,id: uuid.UUID = Depends(get_current_user)) -> AddressRead:
-    address = await db_get_address(address_id)
-    return address
+async def read_address(address_id: uuid.UUID, current: AuthUser, session: SessionDep) -> AddressRead:
+    return AddressRead.model_validate(await get_address(session, current, address_id))
 
-@router.post("/")
-async def create_address(address: AddressCreate, user_id: uuid.UUID = Depends(get_current_user)) -> AddressCreate:
-    new_address = await db_create_address(address, user_id)
-    return new_address
 
-@router.put("/{address_id}")
-async def update_address(address: AddressCreate, address_id: uuid.UUID, id: uuid.UUID = Depends(get_current_user)) -> AddressCreate:
-    updated_address = await db_update_address(address, address_id)
-    return updated_address
+@router.post("", status_code=status.HTTP_201_CREATED, dependencies=[limits.ADDRESSES])
+async def add_address(request: AddressCreate, current: AuthUser, session: SessionDep) -> AddressRead:
+    return AddressRead.model_validate(await create_address(session, current, request))
 
-@router.delete("/{address_id}")
-async def delete_address(address_id: uuid.UUID, id: uuid.UUID = Depends(get_current_user)) -> None:
-    address = await db_delete_address(address_id)
-    return None
+
+@router.put("/{address_id}", dependencies=[limits.ADDRESSES])
+async def replace_address(
+    address_id: uuid.UUID, request: AddressCreate, current: AuthUser, session: SessionDep
+) -> AddressRead:
+    return AddressRead.model_validate(await update_address(session, current, address_id, request))
+
+
+@router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[limits.ADDRESSES])
+async def remove_address(address_id: uuid.UUID, current: AuthUser, session: SessionDep) -> None:
+    await delete_address(session, current, address_id)

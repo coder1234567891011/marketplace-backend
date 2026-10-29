@@ -16,9 +16,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
-from models.database import AccountStatus, OrderStatus
+from models.database import AccountStatus
 from models.model import _ORMBase
 
 
@@ -26,7 +26,7 @@ from models.model import _ORMBase
 # USERS
 # ----------------------------------------------------------------
 class UserRead(_ORMBase):
-    id: uuid.UUID | None
+    id: uuid.UUID
     username: str
     display_name: str | None
     avatar_url: str | None
@@ -40,11 +40,14 @@ class UserRead(_ORMBase):
     created_at: datetime | None = None
 
 
-class UserUpdate(BaseModel):
-    display_name: str | None = None
+class UserCreate(BaseModel):
+    username: str = Field(min_length=3, max_length=30, pattern=r"^[A-Za-z0-9_]+$")
+    display_name: str | None = Field(default=None, max_length=60)
     avatar_url: str | None = None
-    bio: str | None = None
+    bio: str | None = Field(default=None, max_length=1000)
 
 
-
-
+class UserUpdate(BaseModel):
+    display_name: str | None = Field(default=None, max_length=60)
+    avatar_url: str | None = None
+    bio: str | None = Field(default=None, max_length=1000)

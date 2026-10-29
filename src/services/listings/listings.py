@@ -1,56 +1,79 @@
 import uuid
+from collections.abc import Sequence
 
-from models.object_models.listings import ListingRead, ListingCreate
-from services.persistence.database import SupabaseClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-client = SupabaseClient()
-table = client.supabase_client.table('listings')
-card = client.supabase_client.table('cards')
-user = client.supabase_client.table('users')
+from auth.auth import CurrentUser
+from models.database import Listing, ListingStatus
+from models.object_models.listings import ListingCreate, ListingUpdate
+from services.cards.cards import get_card
+from services.collections.collections import get_own_collection_item
+from services.user.user import require_profile
+from utils.errors import BadRequest, Conflict, Forbidden, NotFound
+from utils.pagination import paginate
 
-async def db_get_all_user_listings(user_id: uuid.UUID) -> list[ListingRead]:
-    listing_list = []
-    listings = table.select("*").eq('seller_id', user_id).execute()
-    for listing in listings.data:
-        find_seller = user.select("*").eq("id",listing["seller_id"]).execute()
-        find_card = card.select("*").eq("id", listing["card_id"]).execute()
-        listing_list.append(ListingRead(seller=find_seller.data[0], card=find_card.data[0], **listing))
-    return listing_list
 
-async def db_get_listing(listing_id: uuid.UUID) -> ListingRead:
-    listing = table.select("*").eq("id", listing_id).execute().data[0]
-    find_seller = user.select("*").eq("id", listing["seller_id"]).execute()
-    find_card = card.select("*").eq('id', listing["card_id"]).execute()
-    return ListingRead(seller=find_seller.data[0], card=find_card.data[0], **listing)
+def _with_relations():  # type: ignore[no-untyped-def]
+    return (selectinload(Listing.seller), selectinload(Listing.card))
 
-async def db_create_listing(listing : ListingCreate, id: uuid.UUID) -> ListingCreate:
-    payload = listing.model_dump()
-    payload['seller_id'] = id
-    payload["card_id"]=str(payload["card_id"])
-    payload["collection_item_id"]=str(payload["collection_item_id"])
-    new_listing = table.insert(payload).execute().data[0]
-    return ListingCreate(card_id=new_listing["card_id"],
-                         collection_item_id=new_listing["collection_item_id"],
-                         condition=new_listing["condition"],
-                         is_foil=new_listing["is_foil"],
-                         quantity_available=new_listing["quantity_available"],
-                         price_cents=new_listing["price_cents"],)
 
-async def db_update_listing(listing_id: uuid.UUID, listing: ListingCreate, id) -> ListingCreate:
-    payload = listing.model_dump()
-    payload['seller_id'] = id
-    payload["card_id"]=str(payload["card_id"])
-    payload["collection_item_id"]=str(payload["collection_item_id"])
-    new_listing = table.update(payload).eq('id',listing_id).execute().data[0]
-    return ListingCreate(
-        card_id=new_listing["card_id"],
-        collection_item_id=new_listing["collection_item_id"],
-        condition=new_listing["condition"],
-        is_foil=new_listing["is_foil"],
-        quantity_available=new_listing["quantity_available"],
-        price_cents=new_listing["price_cents"]
-    )
+async def get_user_listings(
+    session: AsyncSession, current: CurrentUser | None, user_id: uuid.UUID, limit: int, cursor: str | None
+) -> tuple[Sequence[Listing], str | None]:
+    stmt = select(Listing).where(Listing.seller_id == user_id).options(*_with_relations())
+    # Sellers see all their listings; everyone else sees only what's for sale.
+    if current is None or current.id != user_id:
+        stmt = stmt.where(Listing.status == ListingStatus.active)
+    return await paginate(session, stmt, Listing, limit, cursor)
 
-async def db_delete_listing(listing_id: uuid.UUID) -> None:
-    delete_listing=table.delete().eq('id', listing_id).execute().data[0]
-    return None
+
+async def get_listing(session: AsyncSession, listing_id: uuid.UUID) -> Listing:
+    listing = await session.scalar(select(Listing).where(Listing.id == listing_id).options(*_with_relations()))
+    if listing is None:
+        raise NotFound("Listing not found")
+    return listing
+
+
+async def _get_own_listing(session: AsyncSession, current: CurrentUser, listing_id: uuid.UUID) -> Listing:
+    listing = await get_listing(session, listing_id)
+    if listing.seller_id != current.id:
+        raise Forbidden("You can only change your own listings")
+    return listing
+
+
+async def create_listing(session: AsyncSession, current: CurrentUser, request: ListingCreate) -> Listing:
+    await require_profile(session, current)
+    await get_card(session, request.card_id)
+    if request.collection_item_id is not None:
+        item = await get_own_collection_item(session, current, request.collection_item_id)
+        if item.card_id != request.card_id:
+            raise BadRequest("Collection item is a different card")
+        if request.quantity_available > item.quantity:
+            raise BadRequest("Listing quantity exceeds the quantity in your collection")
+    listing = Listing(seller_id=current.id, **request.model_dump())
+    session.add(listing)
+    await session.flush()
+    return await get_listing(session, listing.id)
+
+
+async def update_listing(
+    session: AsyncSession, current: CurrentUser, listing_id: uuid.UUID, request: ListingUpdate
+) -> Listing:
+    listing = await _get_own_listing(session, current, listing_id)
+    if listing.status != ListingStatus.active:
+        raise Conflict(f"Listing is {listing.status.value} and can't be edited")
+    for field, value in request.model_dump(exclude_unset=True).items():
+        setattr(listing, field, value)
+    await session.flush()
+    return listing
+
+
+async def remove_listing(session: AsyncSession, current: CurrentUser, listing_id: uuid.UUID) -> None:
+    """Soft delete: orders reference listings, so rows are kept with status=removed."""
+    listing = await _get_own_listing(session, current, listing_id)
+    if listing.status not in (ListingStatus.active, ListingStatus.removed):
+        raise Conflict(f"Listing is {listing.status.value} and can't be removed")
+    listing.status = ListingStatus.removed
+    await session.flush()
