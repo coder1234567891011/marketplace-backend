@@ -2,7 +2,8 @@
 #
 # Authentication is keyless (Workload Identity Federation): GitHub's OIDC
 # token is exchanged for a short-lived login as the github-deployer service
-# account. One-time setup, which also sets the repository variables below:
+# account. One-time setup, which prints the variables below (stored on the
+# "production" environment):
 #   GCP_PROJECT=<project-id> ./deploy/github-deploy-setup.sh
 #
 # Database migrations are not run here; run `alembic upgrade head` before
@@ -26,6 +27,9 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    # GCP_* variables live on the "production" environment (Settings →
+    # Environments), so the job must name it to see them.
+    environment: production
     permissions:
       contents: read
       id-token: write  # lets the job request GitHub's OIDC token
