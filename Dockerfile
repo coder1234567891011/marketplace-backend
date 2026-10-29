@@ -29,5 +29,7 @@ USER appuser
 ENV PORT=8080
 EXPOSE $PORT
 
-# Configuration comes from Fly secrets (environment variables), not a baked-in .env file.
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Configuration comes from environment variables (Cloud Run / Fly secrets),
+# not a baked-in .env file. The platform may choose the port via $PORT;
+# exec makes uvicorn PID 1 so it receives shutdown signals.
+CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}"]

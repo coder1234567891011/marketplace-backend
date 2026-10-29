@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,6 +25,15 @@ class Settings(BaseSettings):
     # Comma-separated browser origins allowed to call the API. Native app
     # requests send no Origin header and aren't affected by CORS.
     cors_origins: str = "http://localhost:8081,http://127.0.0.1:8081"
+
+    # Where the real client IP comes from (used by the per-IP rate limit):
+    #   "socket"          - the TCP peer address (local dev, no proxy)
+    #   "fly"             - the Fly-Client-IP header set by Fly's proxy
+    #   "x-forwarded-for" - X-Forwarded-For, counting forwarded_for_hops entries
+    #                       from the right (Cloud Run: 1; behind a Google load
+    #                       balancer: 2). Entries further left are client-supplied.
+    client_ip_source: Literal["socket", "fly", "x-forwarded-for"] = "socket"
+    forwarded_for_hops: int = 1
 
     rate_limit_enabled: bool = True
     # Requests per minute from one IP address, across all endpoints.

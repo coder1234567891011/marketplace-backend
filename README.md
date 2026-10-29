@@ -1,6 +1,6 @@
 # marketplace-backend
 
-FastAPI backend for an MTG card marketplace. Postgres and auth come from Supabase; the API is deployed on Fly.io.
+FastAPI backend for an MTG card marketplace. Postgres and auth come from Supabase; the API is deployed on Google Cloud Run (a Fly.io config is kept in `fly.toml`).
 
 ## Configuration
 
@@ -13,7 +13,9 @@ Settings are read from environment variables (or `src/.env` locally):
 | `SENTRY_DSN` | Optional; Sentry is off when unset |
 | `SENTRY_TRACES_SAMPLE_RATE` | Defaults to `0.1` |
 | `ENVIRONMENT` | Sentry environment name, defaults to `development` |
-| `CORS_ORIGINS` | Comma-separated browser origins allowed to call the API. Defaults to the Expo web dev server (`http://localhost:8081`); production value is in `fly.toml` |
+| `CORS_ORIGINS` | Comma-separated browser origins allowed to call the API. Defaults to the Expo web dev server (`http://localhost:8081`); production values are in `deploy/cloudrun.env.yaml` and `fly.toml` |
+| `CLIENT_IP_SOURCE` | Where the per-IP rate limit gets the client address: `socket` (default, local), `fly`, or `x-forwarded-for` (Cloud Run) |
+| `FORWARDED_FOR_HOPS` | With `x-forwarded-for`: which entry from the right is the client. `1` on Cloud Run, `2` behind a Google load balancer |
 | `RATE_LIMIT_ENABLED` | `true` by default |
 | `RATE_LIMIT_PER_IP_PER_MINUTE` | Per-IP ceiling across all endpoints, default `300`. Per-user write limits are in `src/utils/limits.py` |
 
@@ -24,7 +26,7 @@ Every authenticated request is checked against the database:
 - banned accounts are rejected everywhere (`403 account_banned`)
 - suspended accounts can read but not write (`403 account_suspended`)
 
-Rate limits are kept in process memory, so they assume a single Fly machine (`min_machines_running = 1`). Move them to Redis before running several machines.
+Rate limits are kept in process memory, so they assume a single instance (Cloud Run `--max-instances 1`, or one Fly machine). Move them to Redis before running several instances.
 
 ## Running locally
 
@@ -55,3 +57,63 @@ TEST_DATABASE_URL=postgresql://postgres@localhost:5432/marketplace_test .venv/bi
 ```
 
 Without `TEST_DATABASE_URL`, only the tests that don't need a database run. CI (`.github/workflows/ci.yml`) runs ruff, mypy and the full test suite against Postgres 15.
+
+## Deploying to Google Cloud Run
+
+One-time setup (needs a Google Cloud project with billing enabled and `gcloud auth login`):
+
+```bash
+set -a; source src/.env; set +a
+GCP_PROJECT=your-project-id ./deploy/cloudrun-setup.sh
+```
+
+This enables the Cloud Run, Cloud Build, Artifact Registry and Secret Manager APIs, stores `DATABASE_URL` (and `SENTRY_DSN` if set) in Secret Manager, and grants the runtime service account access.
+
+Each deploy (run migrations first if there are new ones):
+
+```bash
+GCP_PROJECT=your-project-id ./deploy/cloudrun-deploy.sh
+```
+
+Defaults: region `us-east1` (one of the free-tier Cloud Storage regions; source uploads land in a bucket there), service `marketplace-api`, one instance at most, scale to zero when idle (free tier, with a cold start of a few seconds). Override with `REGION=…`, `SERVICE=…`, or `MIN_INSTANCES=1` to stay warm (billed). Non-secret settings are in `deploy/cloudrun.env.yaml`. To change a secret, re-run the setup script, then deploy again.
+
+### Kill switch: budget and free-tier limits
+
+Google Cloud doesn't stop at the free tier on its own; budgets only send alerts. After the first deploy, set up the kill switch:
+
+```bash
+GCP_PROJECT=your-project-id ./deploy/killswitch-setup.sh
+```
+
+The `api-killswitch` function (`deploy/killswitch/`) closes the API when either check trips. Closing sets the service's ingress to internal-only: the public URL stops answering and stops costing money, but nothing is deleted.
+
+| Check | Runs | Trips at | Source |
+|---|---|---|---|
+| Budget ($1/month by default) | several times a day | 90% of the budget (`STOP_AT_FRACTION`) | Cloud Billing, which lags hours to a day |
+| Free-tier usage, month to date | hourly (Cloud Scheduler) | 80% of any allowance (`FREE_TIER_FRACTION`) | Cloud Monitoring, minutes behind |
+
+The usage check measures, for this service only:
+
+| Measure | Free allowance | How it's measured |
+|---|---|---|
+| Requests | 2,000,000 | `request_count` |
+| vCPU-seconds | 180,000 (about 50 busy hours at 1 vCPU) | `billable_instance_time` × the service's CPU limit |
+| GiB-seconds | 360,000 | `billable_instance_time` × the service's memory limit |
+| Outbound data | 1 GB | `sent_bytes_count`, all traffic, including queries to Supabase (counts more than Google bills, on purpose) |
+| Artifact Registry storage | 0.5 GB | size of every repository in the region (API and kill-switch images) |
+
+Allowances default to Google's published limits and can be overridden with `FREE_REQUESTS`, `FREE_VCPU_SECONDS`, `FREE_GIB_SECONDS`, `FREE_EGRESS_BYTES` and `FREE_ARTIFACT_BYTES` on the function. Free-tier limits are per billing account, so other projects on the same account use the same allowance without being counted here; lower `FREE_TIER_FRACTION` if you have any. Each hourly check logs a usage summary:
+
+```bash
+gcloud functions logs read api-killswitch --region us-east1
+```
+
+To turn the API back on:
+
+```bash
+GCP_PROJECT=your-project-id ./deploy/cloudrun-reopen.sh
+```
+
+A tripped check keeps tripping until its cause goes away, so reopening in the same month closes the API again within the hour (usage) or at the next budget update. Wait for the new month (Pacific time), raise the limit, or, for Artifact Registry storage, delete old images. Deploying doesn't reopen a closed API.
+
+Two things keep normal costs at zero: the deploy and kill-switch scripts set Artifact Registry cleanup policies (keep the 2 newest images), and the setup script destroys replaced secret versions (Secret Manager's free tier counts every version that isn't destroyed).

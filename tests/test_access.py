@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from conftest import add_auth_user, as_user
 from models.database import AccountStatus, User
-from utils.rate_limit import limiter
+from utils.rate_limit import client_ip, limiter
 from utils.settings import settings
 
 
@@ -80,6 +80,7 @@ async def test_rate_limit_runs_after_auth(client: AsyncClient, make_user) -> Non
 
 async def test_per_ip_limit(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "rate_limit_per_ip_per_minute", 3)
+    monkeypatch.setattr(settings, "client_ip_source", "fly")
     limiter.reset()
     headers = {"Fly-Client-IP": "203.0.113.7"}
     for _ in range(3):
@@ -109,3 +110,31 @@ async def test_cors_allows_configured_origins_only(client: AsyncClient) -> None:
 
     bad = await client.options("/v1/listings", headers={"Origin": "https://evil.example", **preflight})
     assert "access-control-allow-origin" not in bad.headers
+
+
+def _scope(xff: str | None = None, fly: str | None = None) -> dict:
+    headers = []
+    if xff is not None:
+        headers.append((b"x-forwarded-for", xff.encode()))
+    if fly is not None:
+        headers.append((b"fly-client-ip", fly.encode()))
+    return {"type": "http", "headers": headers, "client": ("10.0.0.1", 1234)}
+
+
+@pytest.mark.parametrize("source, hops, scope, expected", [
+    # Local: headers are ignored, so they can't be spoofed.
+    ("socket", 1, _scope(xff="1.1.1.1", fly="2.2.2.2"), "10.0.0.1"),
+    ("fly", 1, _scope(fly="2.2.2.2"), "2.2.2.2"),
+    ("fly", 1, _scope(), "10.0.0.1"),
+    # Cloud Run appends the real client last; earlier entries are client-supplied.
+    ("x-forwarded-for", 1, _scope(xff="6.6.6.6, 3.3.3.3"), "3.3.3.3"),
+    ("x-forwarded-for", 1, _scope(xff="3.3.3.3"), "3.3.3.3"),
+    # Behind a Google load balancer, the LB's own address is last.
+    ("x-forwarded-for", 2, _scope(xff="6.6.6.6, 3.3.3.3, 34.1.1.1"), "3.3.3.3"),
+    ("x-forwarded-for", 2, _scope(xff="3.3.3.3"), "10.0.0.1"),
+    ("x-forwarded-for", 1, _scope(), "10.0.0.1"),
+])
+def test_client_ip(monkeypatch: pytest.MonkeyPatch, source: str, hops: int, scope: dict, expected: str) -> None:
+    monkeypatch.setattr(settings, "client_ip_source", source)
+    monkeypatch.setattr(settings, "forwarded_for_hops", hops)
+    assert client_ip(scope) == expected
