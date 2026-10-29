@@ -30,8 +30,9 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from sqlalchemy import bindparam, func, text, tuple_
+from sqlalchemy import bindparam, func, select, text, tuple_
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from models.database import Card
@@ -198,18 +199,49 @@ def read_cards(path: Path) -> Iterator[dict[str, Any]]:
                 yield json.loads(line)
 
 
-async def sync(path: Path, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+async def describe_conflict(session: AsyncSession, row: dict[str, Any]) -> str:
+    """The existing rows a card clashes with, for the end-of-run report."""
+    existing = (await session.execute(
+        select(Card.id, Card.scryfall_id, Card.name, Card.set_code, Card.collector_number, Card.lang).where(
+            (Card.scryfall_id == row["scryfall_id"])
+            | ((func.lower(Card.set_code) == row["set_code"]) & (Card.collector_number == row["collector_number"])
+               & (Card.lang == row["lang"]))))).all()
+    found = "; ".join(f"cards.id {e.id} (scryfall_id {e.scryfall_id}, {e.name}, {e.set_code} "
+                      f"#{e.collector_number} {e.lang})" for e in existing)
+    return (f"{row['name']} ({row['set_code']} #{row['collector_number']} {row['lang']}, "
+            f"scryfall_id {row['scryfall_id']}) clashes with: {found or 'nothing found'}")
+
+
+async def sync(path: Path, sessionmaker: async_sessionmaker[AsyncSession]) -> list[str]:
+    """Sync every card in path. Returns the cards that clashed with existing
+    rows and were skipped."""
     seen = skipped = cards_written = prices_written = batches = 0
     batch: list[tuple[dict[str, Any], dict[str, str]]] = []
+    conflicts: list[str] = []
 
-    async def flush() -> None:
-        nonlocal cards_written, prices_written, batches
+    async def write(rows: list[tuple[dict[str, Any], dict[str, str]]]) -> None:
+        nonlocal cards_written, prices_written
         # One transaction per batch: a failure keeps earlier batches, and a
         # re-run picks up where it left off.
         async with sessionmaker() as session, session.begin():
-            written = await upsert_batch(session, batch)
+            written = await upsert_batch(session, rows)
         cards_written += written[0]
         prices_written += written[1]
+
+    async def flush() -> None:
+        nonlocal batches
+        try:
+            await write(batch)
+        except IntegrityError:
+            # Some card clashes with a row that the sync can't safely merge
+            # (e.g. two existing rows for one printing). Write the batch one
+            # card at a time and report the ones that fail.
+            for rows in batch:
+                try:
+                    await write([rows])
+                except IntegrityError:
+                    async with sessionmaker() as session:
+                        conflicts.append(await describe_conflict(session, rows[0]))
         batches += 1
         batch.clear()
         if batches % 40 == 0:
@@ -228,6 +260,18 @@ async def sync(path: Path, sessionmaker: async_sessionmaker[AsyncSession]) -> No
         await flush()
     print(f"Done: {seen:,} cards read, {skipped:,} skipped (digital-only or not a card), "
           f"{cards_written:,} added or changed, {prices_written:,} price updates")
+    return conflicts
+
+
+def report(conflicts: list[str]) -> None:
+    if not conflicts:
+        return
+    print(f"\n{len(conflicts)} card(s) were not synced: an existing row already uses this printing "
+          "or this Scryfall id. Delete the duplicate row (or move its listings and collection items "
+          "to the other row), then run the sync again:")
+    for conflict in conflicts:
+        print(f"  - {conflict}")
+    raise SystemExit(1)
 
 
 async def main() -> None:
@@ -239,13 +283,14 @@ async def main() -> None:
 
     engine = create_engine(settings.database_url, pool_size=1, max_overflow=0)
     try:
+        sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
         if args.file:
-            await sync(args.file, async_sessionmaker(engine, expire_on_commit=False))
+            report(await sync(args.file, sessionmaker))
             return
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "default-cards.jsonl.gz"
             await download(path)
-            await sync(path, async_sessionmaker(engine, expire_on_commit=False))
+            report(await sync(path, sessionmaker))
     finally:
         await engine.dispose()
 
