@@ -25,10 +25,12 @@ class CardRead(_ORMBase):
     name: str
     set_code: str
     set_name: str
+    set_type: str | None = None
     collector_number: str
     lang: str
     released_at: date
     rarity: str | None
+    promo: bool = False
     layout: str
     mana_cost: str | None
     cmc: float | None
