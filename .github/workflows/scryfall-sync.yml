@@ -1,0 +1,47 @@
+# Nightly card catalog sync from Scryfall (src/scripts/scryfall_sync.py).
+#
+# Runs on GitHub's runners rather than Cloud Run, so the ~500 MB download
+# never touches the Cloud Run free tier or wakes the API. Needs, on the
+# "production" environment (Settings → Environments → production):
+#   * secret   DATABASE_URL         the Supabase Session pooler URI
+#   * variable SCRYFALL_USER_AGENT  e.g. "MTGMarketplace/1.0 (you@example.com)" (optional)
+#
+# Run it by hand from the Actions tab (Run workflow) after the first deploy.
+# Scheduled runs only happen on the default branch.
+name: Scryfall sync
+
+on:
+  schedule:
+    # Daily at 09:17 UTC, after Scryfall's overnight bulk-data refresh.
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: scryfall-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Sync cards
+        working-directory: src
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SCRYFALL_USER_AGENT: ${{ vars.SCRYFALL_USER_AGENT }}
+        run: python -m scripts.scryfall_sync
