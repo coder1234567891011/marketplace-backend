@@ -42,7 +42,7 @@ API docs: http://localhost:8000/docs. All endpoints live under `/v1`.
 `cards` holds one row per paper printing, synced from Scryfall's `default_cards` bulk file by `src/scripts/scryfall_sync.py`. Scryfall's TCGplayer/Cardmarket prices go in `card_prices` and are shown only as an outside reference (`reference_prices`). Card images are hotlinked from Scryfall, not stored.
 
 - **Nightly:** `.github/workflows/scryfall-sync.yml` runs the sync at 09:17 UTC on GitHub's runners. It needs a `DATABASE_URL` secret (and optionally a `SCRYFALL_USER_AGENT` variable) on the `production` environment. Start the first run by hand from the Actions tab.
-- **Locally:** `cd src && ../.venv/bin/python -m scripts.scryfall_sync` (or `--file default-cards.json` for a downloaded copy). Re-running is safe: rows are matched on `scryfall_id`, and unchanged rows aren't rewritten.
+- **Locally:** `cd src && ../.venv/bin/python -m scripts.scryfall_sync` (or `--file default-cards.jsonl.gz` for a downloaded copy). Re-running is safe: rows are matched on `scryfall_id`, and unchanged rows aren't rewritten.
 
 Endpoints (no login needed):
 
