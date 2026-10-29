@@ -106,6 +106,12 @@ class CardCondition(str, enum.Enum):
     DMG = "DMG"
 
 
+class CardFinish(str, enum.Enum):
+    nonfoil = "nonfoil"
+    foil = "foil"
+    etched = "etched"
+
+
 class RecognitionStatus(str, enum.Enum):
     pending = "pending"
     confirmed = "confirmed"
@@ -217,10 +223,13 @@ class Card(Base):
     name: Mapped[str] = mapped_column(nullable=False)
     set_code: Mapped[str] = mapped_column(nullable=False)
     set_name: Mapped[str] = mapped_column(nullable=False)
+    # Scryfall's set type: core, expansion, masters, commander, promo, funny, …
+    set_type: Mapped[str | None] = mapped_column()
     collector_number: Mapped[str] = mapped_column(nullable=False)
     lang: Mapped[str] = mapped_column(nullable=False, server_default=text("'en'::text"))
     released_at: Mapped[date] = mapped_column(nullable=False)
     rarity: Mapped[str | None] = mapped_column()
+    promo: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     layout: Mapped[str] = mapped_column(nullable=False)
     mana_cost: Mapped[str | None] = mapped_column()
     cmc: Mapped[float | None] = mapped_column(Double)
@@ -279,7 +288,9 @@ class CollectionItem(Base):
     __tablename__ = "collection_items"
     __table_args__ = (
         enum_check("condition", CardCondition),
+        enum_check("finish", CardFinish),
         enum_check("recognition_status", RecognitionStatus),
+        Index("idx_collection_items_collection", "collection_id", "created_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -287,7 +298,12 @@ class CollectionItem(Base):
     card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id"))
 
     condition: Mapped[CardCondition | None] = mapped_column(TextEnum(CardCondition))
-    is_foil: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    finish: Mapped[CardFinish] = mapped_column(
+        TextEnum(CardFinish), default=CardFinish.nonfoil, server_default=text("'nonfoil'")
+    )
+    # Language of the physical card (Scryfall code: en, ja, de, …). Usually
+    # the same as card.lang, but Scryfall lists most cards in English only.
+    language: Mapped[str] = mapped_column(default="en", server_default=text("'en'"))
     quantity: Mapped[int] = mapped_column(Integer, default=1)
 
     scan_image_url: Mapped[str | None] = mapped_column()
@@ -309,8 +325,13 @@ class Listing(Base):
     __tablename__ = "listings"
     __table_args__ = (
         enum_check("condition", CardCondition),
+        enum_check("finish", CardFinish),
         enum_check("status", ListingStatus),
         Index("idx_listings_card", "card_id"),
+        # Browsing a card's listings, cheapest first.
+        Index("idx_listings_card_price", "card_id", "price_cents", postgresql_where=text("status = 'active'")),
+        Index("idx_listings_seller", "seller_id", "created_at"),
+        Index("idx_listings_collection_item", "collection_item_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -319,10 +340,14 @@ class Listing(Base):
     card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id"))
 
     condition: Mapped[CardCondition] = mapped_column(TextEnum(CardCondition))
-    is_foil: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    finish: Mapped[CardFinish] = mapped_column(
+        TextEnum(CardFinish), default=CardFinish.nonfoil, server_default=text("'nonfoil'")
+    )
+    language: Mapped[str] = mapped_column(default="en", server_default=text("'en'"))
     quantity_available: Mapped[int] = mapped_column(Integer, default=1)
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
+    notes: Mapped[str | None] = mapped_column()
 
     status: Mapped[ListingStatus] = mapped_column(
         TextEnum(ListingStatus), default=ListingStatus.active, server_default=text("'active'")
@@ -333,6 +358,24 @@ class Listing(Base):
 
     seller: Mapped[User] = relationship(back_populates="listings", lazy="raise")
     card: Mapped[Card] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
+# SHIPPING RATES
+# ----------------------------------------------------------------
+class ShippingRate(Base):
+    """A seller's flat shipping option, e.g. "Untracked envelope, $1"."""
+    __tablename__ = "shipping_rates"
+    __table_args__ = (Index("idx_shipping_rates_seller", "seller_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    seller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(nullable=False)
+    price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
+    tracked: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
 
 
 # ----------------------------------------------------------------

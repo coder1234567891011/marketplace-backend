@@ -53,6 +53,15 @@ Endpoints (no login needed):
 | `GET /v1/cards/oracle/{oracle_id}/printings` | Every printing of one card, newest first |
 | `GET /v1/cards/{id}` | One printing, with reference prices |
 
+## Collections, listings and shipping
+
+- **Finish and language:** collection items and listings have `finish` (`nonfoil`, `foil`, `etched`, checked against the printing's finishes) and `language` (Scryfall codes such as `en`, `ja`).
+- **Import:** `POST /v1/collections/{id}/import` takes `{"format": "decklist" | "csv", "text": …}`. Decklists accept Arena/MTGO lines (`4 Lightning Bolt (M10) 146 *F*`); CSVs need a header row (Moxfield, ManaBox, Deckbox exports work). Add `?dry_run=true` to preview. Unmatched lines are returned, not fatal; lines without a set get the newest released, regular printing and a `note` saying so. Cards already in the collection (same printing, finish, condition, language) get their quantity raised.
+- **Reserved copies:** a listing made from a collection item holds `quantity_available` of its copies while active or pending sale (`quantity_listed` on the item). You can't list more than are free, lower the item below what's listed, or delete it while listed.
+- **Listing status:** `active → pending_sale → sold`, `pending_sale → active` (checkout released), `active → removed`. Sellers only remove; checkout makes the other changes.
+- **Browsing (no login):** `GET /v1/listings/card/{card_id}` (cheapest first; filters `condition`, `finish`, `language`), `GET /v1/listings/card/{card_id}/summary` (per condition and finish: count, quantity, lowest price), `GET /v1/listings/user/{user_id}` (storefront; `q`, `sort=newest|price_asc|price_desc`). Listings from banned or suspended sellers are hidden.
+- **Shipping:** sellers keep up to 10 flat rates at `/v1/shipping-rates` (public list at `/v1/shipping-rates/user/{user_id}`).
+
 ## Migrations
 
 Alembic is set up in `src/`. After changing `models/database.py`:

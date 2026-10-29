@@ -49,8 +49,8 @@ SKIP_LAYOUTS = {"art_series"}
 
 # Columns the sync owns. Everything except id and last_synced_at.
 CATALOG_COLUMNS = (
-    "oracle_id", "name", "set_code", "set_name", "collector_number", "lang", "released_at", "rarity",
-    "layout", "mana_cost", "cmc", "type_line", "oracle_text", "colors", "color_identity", "finishes",
+    "oracle_id", "name", "set_code", "set_name", "set_type", "collector_number", "lang", "released_at", "rarity",
+    "promo", "layout", "mana_cost", "cmc", "type_line", "oracle_text", "colors", "color_identity", "finishes",
     "image_uris", "card_faces",
 )
 
@@ -87,10 +87,12 @@ def card_rows(card: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]] | N
         "name": card["name"],
         "set_code": card["set"],
         "set_name": card["set_name"],
+        "set_type": card.get("set_type"),
         "collector_number": card["collector_number"],
         "lang": card["lang"],
         "released_at": date.fromisoformat(card["released_at"]),
         "rarity": card.get("rarity"),
+        "promo": bool(card.get("promo")),
         "layout": card["layout"],
         "mana_cost": card.get("mana_cost"),
         "cmc": card.get("cmc"),

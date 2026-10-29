@@ -25,12 +25,14 @@ async def get_card(session: AsyncSession, card_id: uuid.UUID) -> Card:
     return card
 
 
-async def ensure_cards_exist(session: AsyncSession, card_ids: Iterable[uuid.UUID]) -> None:
+async def load_cards(session: AsyncSession, card_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Card]:
+    """The given cards by id; NotFound names any that don't exist."""
     wanted = set(card_ids)
-    found = set((await session.scalars(select(Card.id).where(Card.id.in_(wanted)))).all())
-    missing = wanted - found
+    found = {c.id: c for c in await session.scalars(select(Card).where(Card.id.in_(wanted)))}
+    missing = wanted - found.keys()
     if missing:
         raise NotFound(f"Card not found: {', '.join(sorted(str(m) for m in missing))}")
+    return found
 
 
 async def autocomplete(session: AsyncSession, query: str, limit: int) -> Sequence[tuple[uuid.UUID, str]]:

@@ -1,11 +1,22 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from auth.auth import AuthUser, OptionalUser
+from models.database import CardCondition, CardFinish
 from models.model import Page
-from models.object_models.listings import ListingCreate, ListingRead, ListingUpdate
-from services.listings.listings import create_listing, get_listing, get_user_listings, remove_listing, update_listing
+from models.object_models.listings import ListingCreate, ListingGroup, ListingRead, ListingUpdate
+from services.listings.listings import (
+    StorefrontSort,
+    create_listing,
+    get_card_listing_groups,
+    get_card_listings,
+    get_listing,
+    get_user_listings,
+    remove_listing,
+    update_listing,
+)
 from services.persistence.database import SessionDep
 from utils import limits
 from utils.pagination import CursorParam, LimitParam
@@ -19,10 +30,32 @@ router = APIRouter(
 @router.get("/user/{user_id}")
 async def list_user_listings(
     user_id: uuid.UUID, current: OptionalUser, session: SessionDep,
+    q: Annotated[str | None, Query(max_length=100, description="Part of the card name")] = None,
+    sort: StorefrontSort = "newest",
     limit: LimitParam = 50, cursor: CursorParam = None,
 ) -> Page[ListingRead]:
-    listings, next_cursor = await get_user_listings(session, current, user_id, limit, cursor)
+    """A seller's storefront. The seller also sees their sold and removed listings."""
+    listings, next_cursor = await get_user_listings(session, current, user_id, limit, cursor, q=q, sort=sort)
     return Page(items=[ListingRead.model_validate(lst) for lst in listings], next_cursor=next_cursor)
+
+
+@router.get("/card/{card_id}")
+async def list_card_listings(
+    card_id: uuid.UUID, session: SessionDep,
+    condition: CardCondition | None = None, finish: CardFinish | None = None,
+    language: Annotated[str | None, Query(pattern="^[a-z]{2,3}$")] = None,
+    limit: LimitParam = 50, cursor: CursorParam = None,
+) -> Page[ListingRead]:
+    """Listings of one printing for sale, cheapest first."""
+    listings, next_cursor = await get_card_listings(session, card_id, limit, cursor, condition=condition,
+                                                    finish=finish, language=language)
+    return Page(items=[ListingRead.model_validate(lst) for lst in listings], next_cursor=next_cursor)
+
+
+@router.get("/card/{card_id}/summary")
+async def card_listing_summary(card_id: uuid.UUID, session: SessionDep) -> list[ListingGroup]:
+    """How many are for sale and the lowest price, per condition and finish."""
+    return await get_card_listing_groups(session, card_id)
 
 
 @router.get("/{listing_id}")
