@@ -37,6 +37,22 @@ cd src && ../.venv/bin/uvicorn app:app --reload
 
 API docs: http://localhost:8000/docs. All endpoints live under `/v1`.
 
+## Card catalog
+
+`cards` holds one row per paper printing, synced from Scryfall's `default_cards` bulk file by `src/scripts/scryfall_sync.py`. Scryfall's TCGplayer/Cardmarket prices go in `card_prices` and are shown only as an outside reference (`reference_prices`). Card images are hotlinked from Scryfall, not stored.
+
+- **Nightly:** `.github/workflows/scryfall-sync.yml` runs the sync at 09:17 UTC on GitHub's runners. It needs a `DATABASE_URL` secret (and optionally a `SCRYFALL_USER_AGENT` variable) on the `production` environment. Start the first run by hand from the Actions tab.
+- **Locally:** `cd src && ../.venv/bin/python -m scripts.scryfall_sync` (or `--file default-cards.json` for a downloaded copy). Re-running is safe: rows are matched on `scryfall_id`, and unchanged rows aren't rewritten.
+
+Endpoints (no login needed):
+
+| Endpoint | Returns |
+|---|---|
+| `GET /v1/cards/autocomplete?q=` | Up to 20 card names (one per card), prefix matches first, typo-tolerant |
+| `GET /v1/cards/search` | Printings sorted by name; filters `q`, `set`, `rarity`, `type`, `colors` (color identity includes all, e.g. `UR`), `finish`, `lang` |
+| `GET /v1/cards/oracle/{oracle_id}/printings` | Every printing of one card, newest first |
+| `GET /v1/cards/{id}` | One printing, with reference prices |
+
 ## Migrations
 
 Alembic is set up in `src/`. After changing `models/database.py`:

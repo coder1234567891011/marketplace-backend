@@ -9,8 +9,9 @@ Authentication is faked: verify_token is patched so that the bearer token
 import os
 import uuid
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -112,9 +113,11 @@ def make_user(client: AsyncClient, db: AsyncSession):  # type: ignore[no-untyped
 
 @pytest.fixture
 def make_card(db: AsyncSession):  # type: ignore[no-untyped-def]
-    async def _make(name: str = "Lightning Bolt") -> uuid.UUID:
-        card = Card(scryfall_id=uuid.uuid4(), name=name, set_code="m10",
-                    collector_number=str(uuid.uuid4().int % 100000), rarity="common")
+    async def _make(name: str = "Lightning Bolt", **fields: Any) -> uuid.UUID:
+        card = Card(**{
+            "scryfall_id": uuid.uuid4(), "oracle_id": uuid.uuid4(), "name": name, "set_code": "m10",
+            "set_name": "Magic 2010", "collector_number": str(uuid.uuid4().int % 100000), "rarity": "common",
+            "layout": "normal", "released_at": date(2009, 7, 17), "finishes": ["nonfoil", "foil"], **fields})
         db.add(card)
         await db.flush()
         return card.id

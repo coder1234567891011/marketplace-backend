@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Double,
     ForeignKey,
     Index,
     Integer,
@@ -31,7 +33,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -197,22 +199,60 @@ class Address(Base):
 # CARDS (local cache of Scryfall data)
 # ----------------------------------------------------------------
 class Card(Base):
+    """One printing of a card, synced nightly from Scryfall (scripts/scryfall_sync.py)."""
     __tablename__ = "cards"
     __table_args__ = (
-        UniqueConstraint("set_code", "collector_number"),
+        UniqueConstraint("set_code", "collector_number", "lang"),
         # Full-text search on card names.
         Index("idx_cards_name", text("to_tsvector('english'::regconfig, name)"), postgresql_using="gin"),
+        # Substring and typo-tolerant name matching (pg_trgm), for autocomplete.
+        Index("idx_cards_name_trgm", "name", postgresql_using="gin", postgresql_ops={"name": "gin_trgm_ops"}),
+        Index("idx_cards_oracle_id", "oracle_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     scryfall_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, nullable=False)
+    # Shared by every printing of the same card.
+    oracle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(nullable=False)
     set_code: Mapped[str] = mapped_column(nullable=False)
+    set_name: Mapped[str] = mapped_column(nullable=False)
     collector_number: Mapped[str] = mapped_column(nullable=False)
+    lang: Mapped[str] = mapped_column(nullable=False, server_default=text("'en'::text"))
+    released_at: Mapped[date] = mapped_column(nullable=False)
     rarity: Mapped[str | None] = mapped_column()
-    image_url: Mapped[str | None] = mapped_column()
-    is_foil_available: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
+    layout: Mapped[str] = mapped_column(nullable=False)
+    mana_cost: Mapped[str | None] = mapped_column()
+    cmc: Mapped[float | None] = mapped_column(Double)
+    type_line: Mapped[str | None] = mapped_column()
+    oracle_text: Mapped[str | None] = mapped_column()
+    colors: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    color_identity: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
+    # Which of nonfoil / foil / etched this printing exists in.
+    finishes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
+    # Scryfall CDN links (small, normal); images are hotlinked, not stored.
+    image_uris: Mapped[dict[str, str] | None] = mapped_column(JSONB(none_as_null=True))
+    # Per-face name, cost, type, text and images for double-faced cards.
+    card_faces: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB(none_as_null=True))
+    # When the sync last changed this row.
     last_synced_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+    prices: Mapped[CardPrice | None] = relationship(lazy="raise")
+
+
+class CardPrice(Base):
+    """Scryfall's TCGplayer/Cardmarket prices, shown only as an outside reference.
+
+    Kept out of cards because they change daily: the nightly sync rewrites
+    these small rows instead of the whole catalog, which keeps table bloat
+    down on Supabase's 500 MB free database.
+    """
+    __tablename__ = "card_prices"
+
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id", ondelete="CASCADE"), primary_key=True)
+    # e.g. {"usd": "0.25", "usd_foil": "1.10", "eur": "0.20"}; missing prices are left out.
+    prices: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
 
 # ----------------------------------------------------------------
