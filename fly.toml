@@ -8,13 +8,28 @@ primary_region = 'iad'
 
 [build]
 
+[env]
+  ENVIRONMENT = 'production'
+  # Browser origins allowed to call the API (comma-separated). The deployed
+  # web frontend URL is a placeholder: replace it once the site has a domain.
+  CORS_ORIGINS = 'https://YOUR-FRONTEND-DOMAIN.example,http://localhost:8081'
+
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  # Keep one machine warm: no cold starts, and the in-memory rate limits
+  # stay accurate (they're per machine).
+  min_machines_running = 1
   processes = ['app']
+
+  [[http_service.checks]]
+    grace_period = '10s'
+    interval = '30s'
+    method = 'GET'
+    path = '/health'
+    timeout = '5s'
 
 [[vm]]
   memory = '1gb'

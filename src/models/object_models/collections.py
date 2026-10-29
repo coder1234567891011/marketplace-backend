@@ -7,8 +7,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from models.database import CardCondition, RecognitionStatus
-from models.object_models.cards import CardRead
 from models.model import _ORMBase
+from models.object_models.cards import CardRead
 
 
 class CollectionCreate(BaseModel):
@@ -16,22 +16,34 @@ class CollectionCreate(BaseModel):
     is_public: bool = False
 
 
+class CollectionUpdate(BaseModel):
+    name: str | None = None
+    is_public: bool | None = None
+
+
 class CollectionRead(_ORMBase, CollectionCreate):
     id: uuid.UUID
     user_id: uuid.UUID
     created_at: datetime
+    updated_at: datetime
 
 
 
 # ----------------------------------------------------------------
 # COLLECTION ITEMS
 # ----------------------------------------------------------------
-class  CollectionItemCreate(BaseModel):
+class CollectionItemCreate(BaseModel):
     card_id: uuid.UUID
     condition: CardCondition | None = None
     is_foil: bool = False
     quantity: int = Field(default=1, ge=1)
     scan_image_url: str | None = None
+
+
+class CollectionItemUpdate(BaseModel):
+    condition: CardCondition | None = None
+    is_foil: bool | None = None
+    quantity: int | None = Field(default=None, ge=1)
 
 
 class CollectionItemRead(_ORMBase):

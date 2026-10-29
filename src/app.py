@@ -1,42 +1,52 @@
-from fastapi import FastAPI, Depends, Header, HTTPException
 import sentry_sdk
+from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from auth.auth import get_current_user
-from routes.user import router as user_router
+from routes.address import router as address_router
+from routes.card import router as card_router
+from routes.collection import router as collection_router
+from routes.listing import router as listing_router
 from routes.order import router as order_router
 from routes.rating import router as rating_router
-from routes.listing import router as listing_router
-from routes.collection import router as collection_router
-from routes.address import router as address_router
+from routes.user import router as user_router
+from utils.errors import register_error_handlers
+from utils.rate_limit import RateLimitMiddleware
+from utils.settings import settings
 
-sentry_sdk.init(
-    dsn="https://98f0d2e62420546cd35670cfee7f8997@o4511898216562688.ingest.us.sentry.io/4511898225672192",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-    send_default_pii=True,
-    # Enable sending logs to Sentry
-    enable_logs=True,
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        # Don't attach request bodies/IPs: requests carry addresses and tokens.
+        send_default_pii=False,
+        enable_logs=True,
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+    )
+
+app = FastAPI(title="MTG Marketplace API")
+register_error_handlers(app)
+
+# Middleware added last runs first: CORS wraps everything, so even 429
+# responses carry CORS headers and the browser can read them.
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    # Auth is a bearer token, not cookies, so credentials mode isn't needed.
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Retry-After"],
+    max_age=600,
 )
 
-app = FastAPI()
-app.include_router(user_router)
-app.include_router(order_router)
-app.include_router(rating_router)
-app.include_router(listing_router)
-app.include_router(collection_router)
-app.include_router(address_router)
+v1 = APIRouter(prefix="/v1")
+for router in (user_router, address_router, card_router, collection_router,
+               listing_router, order_router, rating_router):
+    v1.include_router(router)
+app.include_router(v1)
 
-@app.get("/me")
-def read_me(user: dict = Depends(get_current_user)):
-    return {"user_id": user["sub"], "email": user.get("email")}
 
-@app.get("/sentry-debug")
-async def trigger_error():
-    division_by_zero = 1 / 0
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
