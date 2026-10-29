@@ -10,5 +10,3 @@ sqlalchemy[asyncio]==2.0.52
 asyncpg>=0.30,<1
 alembic>=1.14,<2
 httpx==0.28.1
-# Streams the Scryfall bulk file in scripts/scryfall_sync.py
-ijson>=3.3,<4

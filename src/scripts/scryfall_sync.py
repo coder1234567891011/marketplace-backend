@@ -4,11 +4,12 @@ Sync the card catalog from Scryfall's bulk data.
 Run from src/ (the nightly GitHub Actions job does this, see
 .github/workflows/scryfall-sync.yml):
     python -m scripts.scryfall_sync                     # download and sync
-    python -m scripts.scryfall_sync --file cards.json   # sync a local copy
+    python -m scripts.scryfall_sync --file cards.jsonl.gz   # sync a local copy
 
 Uses Scryfall's "default_cards" file: every printing, in English or in its
-only printed language (about 500 MB). It is downloaded to a temporary file and
-read one card at a time, so memory stays small. Paper cards only: digital-only
+only printed language. It comes as gzipped JSON Lines (one card per line,
+about 80 MB compressed), downloaded to a temporary file and read one card at
+a time, so memory stays small. Paper cards only: digital-only
 (Arena, MTGO) printings are skipped.
 
 Rows are matched on scryfall_id, so cards.id never changes and listings keep
@@ -18,16 +19,17 @@ moves writes little and keeps table bloat down on Supabase's free tier.
 """
 import argparse
 import asyncio
+import gzip
 import json
 import tempfile
 import uuid
 from collections.abc import Iterator
+from contextlib import ExitStack
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 import httpx
-import ijson
 from sqlalchemy import bindparam, func, text, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -162,8 +164,11 @@ async def download(destination: Path) -> None:
     headers = {"User-Agent": settings.scryfall_user_agent or DEFAULT_USER_AGENT, "Accept": "application/json"}
     async with httpx.AsyncClient(headers=headers, timeout=120, follow_redirects=True) as http:
         meta = (await http.get(BULK_DATA_URL)).raise_for_status().json()
-        print(f"Downloading {meta['download_uri']} (updated {meta['updated_at']})", flush=True)
-        async with http.stream("GET", meta["download_uri"]) as response:
+        url = meta.get("jsonl_download_uri")
+        if not url:
+            raise SystemExit(f"Scryfall's bulk-data response has no jsonl_download_uri; fields: {sorted(meta)}")
+        print(f"Downloading {url} (updated {meta['updated_at']})", flush=True)
+        async with http.stream("GET", url) as response:
             response.raise_for_status()
             with destination.open("wb") as out:
                 async for chunk in response.aiter_bytes(1 << 20):
@@ -171,9 +176,26 @@ async def download(destination: Path) -> None:
 
 
 def read_cards(path: Path) -> Iterator[dict[str, Any]]:
-    with path.open("rb") as f:
-        # use_float: cmc is a JSON number; ijson would otherwise give Decimals.
-        yield from ijson.items(f, "item", use_float=True)
+    """Cards from a JSON Lines file (gzipped or not), or a small JSON array."""
+    with ExitStack() as stack:
+        raw = stack.enter_context(path.open("rb"))
+        if raw.read(2) == b"\x1f\x8b":  # gzip magic number
+            raw.seek(0)
+            f = stack.enter_context(gzip.open(raw, "rt", encoding="utf-8"))
+        else:
+            raw.seek(0)
+            f = stack.enter_context(open(path, encoding="utf-8"))
+        first = f.read(1)
+        while first.isspace():
+            first = f.read(1)
+        if first == "[":
+            # A JSON array (e.g. saved from the search API): small files only.
+            yield from json.loads(first + f.read())
+            return
+        yield json.loads(first + f.readline())
+        for line in f:
+            if line.strip():
+                yield json.loads(line)
 
 
 async def sync(path: Path, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
@@ -210,7 +232,7 @@ async def sync(path: Path, sessionmaker: async_sessionmaker[AsyncSession]) -> No
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Sync the card catalog from Scryfall.")
-    parser.add_argument("--file", type=Path, help="sync from this local default_cards JSON file")
+    parser.add_argument("--file", type=Path, help="sync from a local default-cards .jsonl.gz (or .jsonl) file")
     args = parser.parse_args()
     if not settings.database_url:
         raise SystemExit("DATABASE_URL is not configured")
@@ -221,7 +243,7 @@ async def main() -> None:
             await sync(args.file, async_sessionmaker(engine, expire_on_commit=False))
             return
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "default-cards.json"
+            path = Path(tmp) / "default-cards.jsonl.gz"
             await download(path)
             await sync(path, async_sessionmaker(engine, expire_on_commit=False))
     finally:
