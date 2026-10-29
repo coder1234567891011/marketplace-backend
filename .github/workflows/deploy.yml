@@ -1,0 +1,49 @@
+# Test, then build and deploy the API to Cloud Run on every push to main.
+#
+# Authentication is keyless (Workload Identity Federation): GitHub's OIDC
+# token is exchanged for a short-lived login as the github-deployer service
+# account. One-time setup, which also sets the repository variables below:
+#   GCP_PROJECT=<project-id> ./deploy/github-deploy-setup.sh
+#
+# Database migrations are not run here; run `alembic upgrade head` before
+# merging a change that needs one.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once; a newer push waits for the current one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # lets the job request GitHub's OIDC token
+    env:
+      GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@f112390a2df9932162083945e46d439060d66ec2 # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build, push and deploy
+        run: ./deploy/cloudrun-deploy.sh

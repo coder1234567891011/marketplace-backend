@@ -5,24 +5,45 @@
 #   set -a; source src/.env; set +a        # provides DATABASE_URL and SENTRY_DSN
 #   GCP_PROJECT=my-project ./deploy/cloudrun-setup.sh
 #
+# Creates (or updates):
+#   * the Artifact Registry repository for API images, with a cleanup policy
+#   * the API's own runtime service account, which can read only its secrets
+#     (instead of the default compute account, which has Editor on the project)
+#   * the database-url and sentry-dsn secrets
+#
 # Safe to re-run: existing secrets get a new version instead of failing.
 set -euo pipefail
 
 : "${GCP_PROJECT:?Set GCP_PROJECT to your Google Cloud project id}"
 : "${DATABASE_URL:?Set DATABASE_URL (Supabase Session pooler URI)}"
+REGION=${REGION:-us-east1}
+SERVICE=${SERVICE:-marketplace-api}
+REPOSITORY=${REPOSITORY:-marketplace}
+RUNTIME_SA="${SERVICE}@${GCP_PROJECT}.iam.gserviceaccount.com"
 
 gcloud config set project "$GCP_PROJECT"
+cd "$(dirname "$0")/.."
+# shellcheck source=deploy/lib.sh
+source deploy/lib.sh
 
 echo "Enabling APIs..."
 gcloud services enable \
   run.googleapis.com \
-  cloudbuild.googleapis.com \
   artifactregistry.googleapis.com \
-  secretmanager.googleapis.com
+  secretmanager.googleapis.com \
+  iam.googleapis.com
 
-# Cloud Run (and source builds) run as the default compute service account.
-PROJECT_NUMBER=$(gcloud projects describe "$GCP_PROJECT" --format='value(projectNumber)')
-RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+if ! gcloud artifacts repositories describe "$REPOSITORY" --location "$REGION" >/dev/null 2>&1; then
+  gcloud artifacts repositories create "$REPOSITORY" --location "$REGION" \
+    --repository-format docker --description "Marketplace API images"
+fi
+# Keep only recent images, inside Artifact Registry's free 0.5 GB.
+gcloud artifacts repositories set-cleanup-policies "$REPOSITORY" --location "$REGION" \
+  --policy deploy/artifact-cleanup.json --no-dry-run >/dev/null
+
+if ! gcloud iam service-accounts describe "$RUNTIME_SA" >/dev/null 2>&1; then
+  gcloud iam service-accounts create "$SERVICE" --display-name "Marketplace API runtime"
+fi
 
 put_secret() {
   local name=$1 value=$2
@@ -38,7 +59,7 @@ put_secret() {
   else
     printf '%s' "$value" | gcloud secrets create "$name" --replication-policy=automatic --data-file=-
   fi
-  gcloud secrets add-iam-policy-binding "$name" \
+  retry gcloud secrets add-iam-policy-binding "$name" \
     --member="serviceAccount:${RUNTIME_SA}" --role=roles/secretmanager.secretAccessor >/dev/null
   echo "Secret $name stored."
 }
@@ -49,8 +70,5 @@ if [ -n "${SENTRY_DSN:-}" ]; then
   put_secret sentry-dsn "$SENTRY_DSN"
 fi
 
-echo "Allowing source deploys to build images..."
-gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
-  --member="serviceAccount:${RUNTIME_SA}" --role=roles/run.builder >/dev/null
-
-echo "Done. Deploy with: GCP_PROJECT=$GCP_PROJECT ./deploy/cloudrun-deploy.sh"
+echo "Done. Next: GCP_PROJECT=$GCP_PROJECT ./deploy/github-deploy-setup.sh (deploys from GitHub),"
+echo "or deploy from this machine with Docker running: GCP_PROJECT=$GCP_PROJECT ./deploy/cloudrun-deploy.sh"

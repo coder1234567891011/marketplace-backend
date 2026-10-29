@@ -136,7 +136,7 @@ def sum_metric(client: monitoring_v3.MetricServiceClient, target: Target, metric
 def artifact_storage_bytes(client: artifactregistry_v1.ArtifactRegistryClient, project: str,
                            locations: list[str]) -> float:
     # Covers every repository in these locations: the API's images
-    # (cloud-run-source-deploy) and this function's (gcf-artifacts).
+    # (marketplace) and this function's (gcf-artifacts).
     return float(sum(
         repo.size_bytes
         for location in locations

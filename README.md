@@ -56,26 +56,33 @@ Tests need a disposable Postgres database (**its contents are dropped**):
 TEST_DATABASE_URL=postgresql://postgres@localhost:5432/marketplace_test .venv/bin/pytest
 ```
 
-Without `TEST_DATABASE_URL`, only the tests that don't need a database run. CI (`.github/workflows/ci.yml`) runs ruff, mypy and the full test suite against Postgres 15.
+Without `TEST_DATABASE_URL`, only the tests that don't need a database run. CI (`.github/workflows/ci.yml`) runs ruff, mypy and the full test suite against Postgres 15 on pull requests and branch pushes; on `main` it runs as the first step of the Deploy workflow.
 
 ## Deploying to Google Cloud Run
 
-One-time setup (needs a Google Cloud project with billing enabled and `gcloud auth login`):
+Pushes to `main` deploy automatically: `.github/workflows/deploy.yml` runs the test suite, then builds the Docker image, pushes it to Artifact Registry and deploys it with `deploy/cloudrun-deploy.sh`. GitHub signs in to Google Cloud with Workload Identity Federation, so no keys are stored in GitHub.
+
+One-time setup (needs a Google Cloud project with billing enabled, `gcloud auth login`, and the project id):
 
 ```bash
 set -a; source src/.env; set +a
 GCP_PROJECT=your-project-id ./deploy/cloudrun-setup.sh
+GCP_PROJECT=your-project-id ./deploy/github-deploy-setup.sh
 ```
 
-This enables the Cloud Run, Cloud Build, Artifact Registry and Secret Manager APIs, stores `DATABASE_URL` (and `SENTRY_DSN` if set) in Secret Manager, and grants the runtime service account access.
+1. `cloudrun-setup.sh` enables the APIs, creates the `marketplace` image repository (keeps the 2 newest images), creates the `marketplace-api` runtime service account, and stores `DATABASE_URL` (and `SENTRY_DSN` if set) in Secret Manager, readable only by that account.
+2. `github-deploy-setup.sh` creates the `github-deployer` service account and lets only workflow runs on this repository's `main` branch use it. It then sets the `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SA` repository variables (with the GitHub CLI if installed; otherwise it prints them to add under Settings → Secrets and variables → Actions → Variables).
+3. Push to `main` (or run the Deploy workflow by hand) for the first deploy, then set up the kill switch below.
 
-Each deploy (run migrations first if there are new ones):
+Migrations aren't run by the workflow: run `alembic upgrade head` from `src/` before merging a change that needs one.
+
+To deploy from your own machine instead (Docker must be running):
 
 ```bash
 GCP_PROJECT=your-project-id ./deploy/cloudrun-deploy.sh
 ```
 
-Defaults: region `us-east1` (one of the free-tier Cloud Storage regions; source uploads land in a bucket there), service `marketplace-api`, one instance at most, scale to zero when idle (free tier, with a cold start of a few seconds). Override with `REGION=…`, `SERVICE=…`, or `MIN_INSTANCES=1` to stay warm (billed). Non-secret settings are in `deploy/cloudrun.env.yaml`. To change a secret, re-run the setup script, then deploy again.
+Defaults: region `us-east1` (a free-tier region, near Supabase in us-east), service `marketplace-api`, one instance at most, scale to zero when idle (free tier, with a cold start of a few seconds). Override with `REGION=…`, `SERVICE=…`, or `MIN_INSTANCES=1` to stay warm (billed). Non-secret settings are in `deploy/cloudrun.env.yaml`. To change a secret, re-run `cloudrun-setup.sh`; the next deploy picks it up.
 
 ### Kill switch: budget and free-tier limits
 
@@ -116,4 +123,4 @@ GCP_PROJECT=your-project-id ./deploy/cloudrun-reopen.sh
 
 A tripped check keeps tripping until its cause goes away, so reopening in the same month closes the API again within the hour (usage) or at the next budget update. Wait for the new month (Pacific time), raise the limit, or, for Artifact Registry storage, delete old images. Deploying doesn't reopen a closed API.
 
-Two things keep normal costs at zero: the deploy and kill-switch scripts set Artifact Registry cleanup policies (keep the 2 newest images), and the setup script destroys replaced secret versions (Secret Manager's free tier counts every version that isn't destroyed).
+Two things keep normal costs at zero: the setup scripts set Artifact Registry cleanup policies (keep the 2 newest images), and the setup script destroys replaced secret versions (Secret Manager's free tier counts every version that isn't destroyed).

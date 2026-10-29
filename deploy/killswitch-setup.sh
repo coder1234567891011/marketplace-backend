@@ -35,11 +35,14 @@ BUDGET_NAME="$SERVICE monthly budget"
 KILLSWITCH_SA="killswitch@${GCP_PROJECT}.iam.gserviceaccount.com"
 
 cd "$(dirname "$0")/.."
+# shellcheck source=deploy/lib.sh
+source deploy/lib.sh
 gcloud config set project "$GCP_PROJECT" >/dev/null
 
 echo "Enabling APIs..."
 gcloud services enable \
   cloudfunctions.googleapis.com \
+  cloudbuild.googleapis.com \
   eventarc.googleapis.com \
   pubsub.googleapis.com \
   billingbudgets.googleapis.com \
@@ -49,7 +52,10 @@ gcloud services enable \
   artifactregistry.googleapis.com
 
 PROJECT_NUMBER=$(gcloud projects describe "$GCP_PROJECT" --format='value(projectNumber)')
-RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+# The API's runtime account (created by cloudrun-setup.sh) and the account
+# Cloud Build uses to build the function.
+RUNTIME_SA="${SERVICE}@${GCP_PROJECT}.iam.gserviceaccount.com"
+BUILD_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 if ! gcloud pubsub topics describe "$TOPIC" >/dev/null 2>&1; then
   gcloud pubsub topics create "$TOPIC"
@@ -60,18 +66,21 @@ if ! gcloud iam service-accounts describe "$KILLSWITCH_SA" >/dev/null 2>&1; then
 fi
 
 echo "Granting the kill switch permission to change the API service only..."
-gcloud run services add-iam-policy-binding "$SERVICE" --region "$REGION" \
+retry gcloud run services add-iam-policy-binding "$SERVICE" --region "$REGION" \
   --member "serviceAccount:${KILLSWITCH_SA}" --role roles/run.developer >/dev/null
 # Updating a Cloud Run service requires acting as its runtime service account.
-gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
+retry gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
   --member "serviceAccount:${KILLSWITCH_SA}" --role roles/iam.serviceAccountUser >/dev/null
-gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
+retry gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
   --member "serviceAccount:${KILLSWITCH_SA}" --role roles/eventarc.eventReceiver >/dev/null
 # Read-only access for the usage check: Cloud Run metrics and repository sizes.
 for role in roles/monitoring.viewer roles/artifactregistry.reader; do
-  gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
+  retry gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
     --member "serviceAccount:${KILLSWITCH_SA}" --role "$role" >/dev/null
 done
+
+retry gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
+  --member "serviceAccount:${BUILD_SA}" --role roles/cloudbuild.builds.builder >/dev/null
 
 echo "Deploying the kill-switch function..."
 gcloud functions deploy "$FUNCTION" \
@@ -87,7 +96,7 @@ gcloud functions deploy "$FUNCTION" \
   --memory 256Mi \
   --max-instances 1 \
   --no-allow-unauthenticated
-gcloud functions add-invoker-policy-binding "$FUNCTION" --region "$REGION" \
+retry gcloud functions add-invoker-policy-binding "$FUNCTION" --region "$REGION" \
   --member "serviceAccount:${KILLSWITCH_SA}" >/dev/null
 
 # The function's own images are stored in gcf-artifacts; keep that inside the
