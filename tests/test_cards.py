@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import date
 from typing import Any
@@ -150,3 +151,24 @@ async def test_upsert_adopts_existing_printing(db: AsyncSession, make_card) -> N
     card = await db.get(Card, card_id)
     assert card is not None
     assert (card.scryfall_id, card.set_code, card.type_line) == (uuid.UUID(bolt["id"]), "m10", "Instant")
+
+
+async def test_sync_skips_and_reports_cards_it_cannot_merge(conn, make_card, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Two existing rows for one printing: one has Scryfall's id, the other the
+    set and number. Syncing would make them identical, so that card is
+    skipped and reported, and the rest still sync."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from scripts.scryfall_sync import sync
+
+    bolt, counterspell = scryfall_card(), scryfall_card(name="Counterspell", collector_number="50")
+    await make_card(scryfall_id=uuid.UUID(bolt["id"]), set_code="M10", collector_number="146")
+    await make_card(set_code="m10", collector_number="146")
+    path = tmp_path / "cards.jsonl"
+    path.write_text("\n".join(json.dumps(c) for c in (bolt, counterspell)))
+
+    sessionmaker = async_sessionmaker(bind=conn, join_transaction_mode="create_savepoint", expire_on_commit=False)
+    conflicts = await sync(path, sessionmaker)
+    assert len(conflicts) == 1 and "Lightning Bolt (m10 #146 en" in conflicts[0]
+    async with sessionmaker() as session:
+        assert await session.scalar(select(Card.name).where(Card.scryfall_id == uuid.UUID(counterspell["id"])))
