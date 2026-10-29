@@ -8,9 +8,9 @@ Two layers:
     creation, listings, ratings, ...), applied after authentication so a
     forged token can't use up someone else's allowance.
 
-Counters live in process memory: they reset on deploy and are per machine.
-That's fine while Fly runs a single machine; with several machines, move
-the counters to a shared store such as Redis.
+Counters live in process memory: they reset on deploy (and when Cloud Run
+scales to zero) and are per instance. That's fine with a single instance;
+with several, move the counters to a shared store such as Redis.
 """
 import math
 import time
@@ -57,12 +57,31 @@ class RateLimiter:
 limiter = RateLimiter()
 
 
+def _header(scope: Scope, name: bytes) -> str | None:
+    for key, value in scope.get("headers", []):
+        if key == name:
+            return value.decode("latin-1")
+    return None
+
+
 def client_ip(scope: Scope) -> str:
-    # On Fly, the proxy sets Fly-Client-IP to the real client address
-    # (overwriting any value the client sent).
-    for name, value in scope.get("headers", []):
-        if name == b"fly-client-ip":
-            return value.decode()
+    """The real client address, according to settings.client_ip_source.
+
+    Only trust a header the platform's proxy sets: Fly overwrites
+    Fly-Client-IP, and Google's front end appends the client address to the
+    end of X-Forwarded-For (anything before it came from the client).
+    """
+    source = settings.client_ip_source
+    if source == "fly":
+        value = _header(scope, b"fly-client-ip")
+        if value:
+            return value.strip()
+    elif source == "x-forwarded-for":
+        value = _header(scope, b"x-forwarded-for")
+        if value:
+            entries = [e.strip() for e in value.split(",") if e.strip()]
+            if len(entries) >= settings.forwarded_for_hops:
+                return entries[-settings.forwarded_for_hops]
     client = scope.get("client")
     return client[0] if client else "unknown"
 
