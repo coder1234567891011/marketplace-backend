@@ -74,6 +74,20 @@ class Settings(BaseSettings):
         "NM": Decimal("1"), "LP": Decimal("0.9"), "MP": Decimal("0.75"), "HP": Decimal("0.6"), "DMG": Decimal("0.4"),
     }
 
+    # Scan photos go to an S3-compatible bucket through presigned URLs
+    # (services/storage/storage.py). Cloudflare R2: endpoint
+    # https://ACCOUNT_ID.r2.cloudflarestorage.com, region "auto". Scans work
+    # without photos when these are unset.
+    storage_endpoint: str = ""
+    storage_bucket: str = ""
+    storage_region: str = "auto"
+    storage_access_key_id: str = ""
+    storage_secret_access_key: str = ""
+    # How long upload and viewing links last.
+    storage_upload_seconds: int = Field(default=600, ge=60, le=3600)
+    storage_download_seconds: int = Field(default=3600, ge=60, le=86400)
+    scan_photo_max_bytes: int = Field(default=10_000_000, ge=100_000, le=50_000_000)
+
     @field_validator("condition_price_factors")
     @classmethod
     def _every_condition(cls, value: dict[str, Decimal]) -> dict[str, Decimal]:

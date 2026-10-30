@@ -22,6 +22,7 @@ Settings are read from environment variables (or `src/.env` locally):
 | `STRIPE_WEBHOOK_SECRET` | Signing secret of the webhook endpoint (`whsec_…`) |
 | `FRONTEND_URL` | The web app; Stripe sends buyers and sellers back here. Defaults to `http://localhost:8081` |
 | `PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS`, `CHECKOUT_HOLD_MINUTES`, `PAYOUT_ON` | Marketplace terms, see "Cart, checkout and payments" |
+| `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` | S3-compatible bucket for scan photos, see "Card scanning". Photo uploads return 503 without them |
 | `MARKET_PRICE_DAYS`, `MARKET_PRICE_SALES`, `MARKET_PRICE_MIN_SALES`, `CONDITION_PRICE_FACTORS` | How market prices are worked out, see "Market prices" |
 
 ## Access rules
@@ -188,6 +189,37 @@ A tripped check keeps tripping until its cause goes away, so reopening in the sa
 
 Two things keep normal costs at zero: the setup scripts set Artifact Registry cleanup policies (keep the 2 newest images), and the setup script destroys replaced secret versions (Secret Manager's free tier counts every version that isn't destroyed).
 
+## Card scanning
+
+The app reads the text on a card with OCR on the device (for example Tesseract.js) and the API matches it against the catalog, so scanning costs nothing per card and doesn't load the server. Photos are optional and go straight from the app to a storage bucket.
+
+1. `POST /v1/scans`, optionally with `photo: {content_type, size_bytes}` (JPEG, PNG, WebP or HEIC, up to `SCAN_PHOTO_MAX_BYTES`, 10 MB) and the text already read. The response's `upload` holds a URL to `PUT` the file to, with the given headers, within 10 minutes.
+2. `POST /v1/scans/{id}/recognize` with `collector_text` (the bottom-left line, e.g. `0150 R` / `M21 • EN`) and/or `name_text`. You can also send them in step 1. It can be repeated, for example after a better photo.
+3. The scan comes back `matched` with up to 5 `candidates` (best first, with a `confidence` from 0 to 1), or `unmatched`. When the top candidate is 0.9 or more the app can skip asking.
+4. `POST /v1/scans/{id}/confirm` with `collection_id` (plus optional `card_id`, `condition`, `finish`, `language`, `quantity`) adds the card to the collection. It defaults to the top candidate and to the language and foil read from the collector line. The same card again raises the existing item's quantity. Items record `recognition_status` (`confirmed` from a candidate, `manual` when the user picked another card) and `recognition_confidence`.
+
+Matching, in `services/scans/matching.py`:
+- **Collector line:** set code plus collector number identifies the exact printing (cards since 2014). The language code picks between languages, and a ★ marks a foil.
+- **Name:** typo-tolerant with pg_trgm. Double-faced cards match on their front face, and a set code read from the collector line chooses the printing. The catalog is mostly English, so non-English names rarely match by name alone.
+- **Disagreement:** if the number points at a different card than the name, the name wins.
+
+`GET /v1/scans` lists the caller's scans (`status` filter) and `GET /v1/scans/{id}` includes a temporary `photo_url`.
+
+### Photo bucket (Cloudflare R2)
+
+R2 is free up to 10 GB with no download fees; any S3-compatible store works (Supabase Storage, AWS S3). In the Cloudflare dashboard → R2:
+
+1. Create a bucket, e.g. `mtg-scans`. `STORAGE_ENDPOINT` is `https://ACCOUNT_ID.r2.cloudflarestorage.com`, `STORAGE_REGION` is `auto`.
+2. Settings → CORS policy, so browsers can upload and view (add `http://localhost:8081` for local work):
+   ```json
+   [{"AllowedOrigins": ["https://YOUR-FRONTEND-DOMAIN.example"], "AllowedMethods": ["PUT", "GET"], "AllowedHeaders": ["Content-Type"], "MaxAgeSeconds": 3600}]
+   ```
+3. Settings → Object lifecycle rules: delete objects with prefix `scans/` after 30 days. Deleting a scan doesn't delete its photo, so this keeps the bucket small.
+4. Manage R2 API tokens → create a token with Object Read & Write on that bucket only. Put its access key id in `STORAGE_ACCESS_KEY_ID` (`deploy/cloudrun.env.yaml`), and store the secret:
+   ```bash
+   STORAGE_SECRET_ACCESS_KEY=… GCP_PROJECT=your-project-id ./deploy/cloudrun-setup.sh
+   ```
+
 ## Market prices
 
 Prices come from sales on the marketplace. Scryfall's TCGplayer and Cardmarket prices are only shown as `reference_prices`.
@@ -239,5 +271,7 @@ Decisions and switches to settle before taking real money:
 - [ ] **Backups:** Supabase's free plan has no point-in-time recovery; schedule `pg_dump` backups once real orders exist.
 - [ ] **Price factors:** `CONDITION_PRICE_FACTORS`, `MARKET_PRICE_SALES`, `MARKET_PRICE_MIN_SALES` and `MARKET_PRICE_DAYS` (placeholders). Change their defaults in `src/utils/settings.py`: the nightly job (GitHub Actions) and the API (suggested prices) both use them, so environment variables would have to be set in both places.
 - [ ] **Price manipulation:** a seller can buy their own listings from a second account to push a market price up. The median of several sales limits this; before launch, consider ignoring sales between accounts that share a payment card or address, and watching for sellers with many sales to the same buyer.
+- [ ] **Scan photos:** set up the bucket ("Photo bucket"), add the real frontend to its CORS policy, and decide how long photos are kept (the lifecycle rule).
+- [ ] **Hard scans:** an optional paid fallback (sending the photo to a vision model when OCR finds nothing) isn't built; decide whether it's worth the per-scan cost.
 - [ ] **Emails:** order confirmation, "you sold something" and "your order shipped" emails aren't built yet (planned with Resend).
 - [ ] **Webhook monitoring:** if webhooks fail, held copies stay held until Stripe stops retrying (3 days). Watch the endpoint's delivery status in the Stripe dashboard (and Sentry).

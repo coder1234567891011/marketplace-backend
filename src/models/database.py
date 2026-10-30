@@ -113,6 +113,13 @@ class CardFinish(str, enum.Enum):
     etched = "etched"
 
 
+class ScanStatus(str, enum.Enum):
+    pending = "pending"        # waiting for the text read from the photo
+    matched = "matched"        # has candidate printings for the user to confirm
+    unmatched = "unmatched"    # nothing in the catalog matched the text
+    confirmed = "confirmed"    # added to a collection
+
+
 class RecognitionStatus(str, enum.Enum):
     pending = "pending"
     confirmed = "confirmed"
@@ -366,6 +373,42 @@ class CollectionItem(Base):
 
     collection: Mapped[Collection] = relationship(back_populates="items", lazy="raise")
     card: Mapped[Card] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
+# SCANS
+# ----------------------------------------------------------------
+class Scan(Base):
+    """A photo of one card and what it was recognized as. The app reads the
+    text on the card itself (OCR on the device) and sends it; the API matches
+    it against the catalog. The photo is optional and lives in the storage
+    bucket, not the database."""
+    __tablename__ = "scans"
+    __table_args__ = (
+        enum_check("status", ScanStatus),
+        Index("idx_scans_user", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[ScanStatus] = mapped_column(
+        TextEnum(ScanStatus), default=ScanStatus.pending, server_default=text("'pending'")
+    )
+    # Object key in the storage bucket, e.g. scans/<user id>/<scan id>.jpg.
+    photo_key: Mapped[str | None] = mapped_column()
+    # What the device read: the collector line at the bottom left (set code,
+    # collector number, language) and the card's name.
+    collector_text: Mapped[str | None] = mapped_column()
+    name_text: Mapped[str | None] = mapped_column()
+    # Read from the collector line, when it says.
+    detected_language: Mapped[str | None] = mapped_column()
+    detected_foil: Mapped[bool | None] = mapped_column()
+    # Best first: [{"card_id": "…", "confidence": 0.98, "match": "collector_number" | "name"}].
+    candidates: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    collection_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("collection_items.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
 
 
 # ----------------------------------------------------------------

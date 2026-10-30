@@ -218,7 +218,7 @@ _SPECIAL_SET_TYPES = {"memorabilia", "funny", "token", "minigame", "treasure_che
                       "box", "arsenal", "from_the_vault", "spellbook", "premium_deck"}
 
 
-def _pick(candidates: list[Card], line: importer.ParsedLine) -> Card | None:
+def pick_printing(candidates: list[Card], line: importer.ParsedLine) -> Card | None:
     """The best printing for a line, like Scryfall's default printing: in the
     requested finish if possible, English, already released, not a promo or
     special product, then newest."""
@@ -276,19 +276,19 @@ async def _resolve(
     for ln in lines:
         name_matches = by_name.get(_name_key(ln.name), []) if ln.name else []
         if ln.set_code and ln.collector_number:
-            card = _pick(by_number.get((ln.set_code, ln.collector_number.lower()), []), ln)
+            card = pick_printing(by_number.get((ln.set_code, ln.collector_number.lower()), []), ln)
             # A number that points at a different card is a typo; fall back to the name.
             if card is not None and _same_card(card, ln.name):
                 resolved[ln.line] = (card, None)
                 continue
         if ln.set_code:
-            card = _pick([c for c in name_matches if c.set_code == ln.set_code], ln)
+            card = pick_printing([c for c in name_matches if c.set_code == ln.set_code], ln)
             if card is not None:
                 note = (None if not ln.collector_number
                         else f"#{ln.collector_number} isn't this card; matched by name in that set")
                 resolved[ln.line] = (card, note)
                 continue
-        card = _pick(name_matches, ln)
+        card = pick_printing(name_matches, ln)
         if card is not None:
             where = f"{card.set_name} ({card.set_code.upper()}) #{card.collector_number}"
             reason = "Set not found" if ln.set_code else "No set given"

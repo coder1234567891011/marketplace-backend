@@ -34,7 +34,8 @@ docker push "$IMAGE"
 
 SECRETS="DATABASE_URL=database-url:latest"
 # Optional secrets: each is passed only once it exists in Secret Manager.
-for pair in SENTRY_DSN=sentry-dsn STRIPE_SECRET_KEY=stripe-secret-key STRIPE_WEBHOOK_SECRET=stripe-webhook-secret; do
+for pair in SENTRY_DSN=sentry-dsn STRIPE_SECRET_KEY=stripe-secret-key STRIPE_WEBHOOK_SECRET=stripe-webhook-secret \
+    STORAGE_SECRET_ACCESS_KEY=storage-secret-access-key; do
   if gcloud secrets describe "${pair#*=}" --project "$GCP_PROJECT" >/dev/null 2>&1; then
     SECRETS="$SECRETS,${pair}:latest"
   fi
