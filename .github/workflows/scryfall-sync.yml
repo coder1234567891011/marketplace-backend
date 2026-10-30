@@ -1,4 +1,5 @@
-# Nightly card catalog sync from Scryfall (src/scripts/scryfall_sync.py).
+# Nightly card catalog sync from Scryfall (src/scripts/scryfall_sync.py),
+# then marketplace prices from recent sales (src/scripts/market_prices.py).
 #
 # Runs on GitHub's runners rather than Cloud Run, so the ~500 MB download
 # never touches the Cloud Run free tier or wakes the API. Needs, on the
@@ -45,3 +46,11 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SCRYFALL_USER_AGENT: ${{ vars.SCRYFALL_USER_AGENT }}
         run: python -m scripts.scryfall_sync
+
+      - name: Market prices
+        # Prices come from this marketplace's own sales, so they don't depend on the sync.
+        if: ${{ !cancelled() }}
+        working-directory: src
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m scripts.market_prices

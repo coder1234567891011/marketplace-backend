@@ -148,6 +148,11 @@ class RatingRole(str, enum.Enum):
     seller = "seller"
 
 
+class PriceSource(str, enum.Enum):
+    sales = "sales"          # median of recent sales on the marketplace
+    listings = "listings"    # not enough sales: the cheapest NM listing for sale
+
+
 # ----------------------------------------------------------------
 # USERS
 # ----------------------------------------------------------------
@@ -270,6 +275,43 @@ class CardPrice(Base):
     # e.g. {"usd": "0.25", "usd_foil": "1.10", "eur": "0.20"}; missing prices are left out.
     prices: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+class MarketPrice(Base):
+    """A card's price on the marketplace, in NM condition, per finish and
+    language. Rebuilt nightly by scripts/market_prices.py; other conditions
+    are priced with settings.condition_price_factors."""
+    __tablename__ = "market_prices"
+    __table_args__ = (
+        enum_check("finish", CardFinish),
+        enum_check("source", PriceSource),
+    )
+
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id", ondelete="CASCADE"), primary_key=True)
+    finish: Mapped[CardFinish] = mapped_column(TextEnum(CardFinish), primary_key=True)
+    language: Mapped[str] = mapped_column(primary_key=True)
+    price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[PriceSource] = mapped_column(TextEnum(PriceSource))
+    # Sales the price was taken from (0 when it comes from listings).
+    sales_count: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    computed_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+class PriceSnapshot(Base):
+    """Market price history, for charts. A row is only written on days the
+    price changed, so the price on any day is the latest row on or before it."""
+    __tablename__ = "price_snapshots"
+    __table_args__ = (
+        enum_check("finish", CardFinish),
+        enum_check("source", PriceSource),
+    )
+
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id", ondelete="CASCADE"), primary_key=True)
+    finish: Mapped[CardFinish] = mapped_column(TextEnum(CardFinish), primary_key=True)
+    language: Mapped[str] = mapped_column(primary_key=True)
+    day: Mapped[date] = mapped_column(primary_key=True)
+    price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[PriceSource] = mapped_column(TextEnum(PriceSource))
 
 
 # ----------------------------------------------------------------
@@ -501,6 +543,7 @@ class OrderItem(Base):
         enum_check("condition", CardCondition),
         enum_check("finish", CardFinish),
         Index("idx_order_items_order", "order_id"),
+        Index("idx_order_items_card", "card_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

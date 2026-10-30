@@ -2,7 +2,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -61,6 +61,27 @@ class Settings(BaseSettings):
     # When sellers are paid: when they mark the order shipped (protects
     # buyers), or as soon as the buyer pays.
     payout_on: Literal["shipped", "paid"] = "shipped"
+
+    # Market prices, recomputed nightly (scripts/market_prices.py): the median
+    # of a card's last market_price_sales sales within market_price_days, once
+    # it has at least market_price_min_sales; until then its cheapest NM listing.
+    market_price_days: int = Field(default=90, ge=7, le=365)
+    market_price_sales: int = Field(default=10, ge=1, le=100)
+    market_price_min_sales: int = Field(default=3, ge=1, le=100)
+    # What each condition is worth relative to NM. Sales are scaled to NM
+    # before taking the median, and suggested prices are scaled back.
+    condition_price_factors: dict[str, Decimal] = {
+        "NM": Decimal("1"), "LP": Decimal("0.9"), "MP": Decimal("0.75"), "HP": Decimal("0.6"), "DMG": Decimal("0.4"),
+    }
+
+    @field_validator("condition_price_factors")
+    @classmethod
+    def _every_condition(cls, value: dict[str, Decimal]) -> dict[str, Decimal]:
+        if set(value) != {"NM", "LP", "MP", "HP", "DMG"}:
+            raise ValueError("needs a factor for each of NM, LP, MP, HP, DMG")
+        if not all(Decimal(0) < f <= Decimal(1) for f in value.values()):
+            raise ValueError("factors must be more than 0 and at most 1")
+        return value
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -22,6 +22,7 @@ Settings are read from environment variables (or `src/.env` locally):
 | `STRIPE_WEBHOOK_SECRET` | Signing secret of the webhook endpoint (`whsec_…`) |
 | `FRONTEND_URL` | The web app; Stripe sends buyers and sellers back here. Defaults to `http://localhost:8081` |
 | `PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS`, `CHECKOUT_HOLD_MINUTES`, `PAYOUT_ON` | Marketplace terms, see "Cart, checkout and payments" |
+| `MARKET_PRICE_DAYS`, `MARKET_PRICE_SALES`, `MARKET_PRICE_MIN_SALES`, `CONDITION_PRICE_FACTORS` | How market prices are worked out, see "Market prices" |
 
 ## Access rules
 
@@ -55,7 +56,10 @@ Endpoints (no login needed):
 | `GET /v1/cards/autocomplete?q=` | Up to 20 card names (one per card), prefix matches first, typo-tolerant |
 | `GET /v1/cards/search` | Printings sorted by name; filters `q`, `set`, `rarity`, `type`, `colors` (color identity includes all, e.g. `UR`), `finish`, `lang` |
 | `GET /v1/cards/oracle/{oracle_id}/printings` | Every printing of one card, newest first |
-| `GET /v1/cards/{id}` | One printing, with reference prices |
+| `GET /v1/cards/{id}` | One printing, with marketplace prices (`market_prices`) and Scryfall's reference prices |
+| `GET /v1/cards/{id}/sales` | Recent sales, newest first; filters `finish`, `language`, `condition`, `limit` |
+| `GET /v1/cards/{id}/price-history` | NM market price changes for `finish` and `language` over `days` (default 90) |
+| `GET /v1/cards/{id}/suggested-price` | A starting price for a listing in `condition`, `finish` and `language` |
 
 ## Collections, listings and shipping
 
@@ -184,6 +188,40 @@ A tripped check keeps tripping until its cause goes away, so reopening in the sa
 
 Two things keep normal costs at zero: the setup scripts set Artifact Registry cleanup policies (keep the 2 newest images), and the setup script destroys replaced secret versions (Secret Manager's free tier counts every version that isn't destroyed).
 
+## Market prices
+
+Prices come from sales on the marketplace. Scryfall's TCGplayer and Cardmarket prices are only shown as `reference_prices`.
+
+- **Sales:** order items of paid, shipped or delivered orders, keyed by card, finish, condition and language. Refunded, cancelled and disputed orders don't count. `GET /v1/cards/{id}/sales` shows them publicly (price, condition, date, never who bought or sold).
+- **Market price:** one per card, finish and language, in NM condition. Each sale is scaled to NM with `CONDITION_PRICE_FACTORS` (placeholder: LP 0.9, MP 0.75, HP 0.6, DMG 0.4), then the price is the median of the last `MARKET_PRICE_SALES` (10) sales within `MARKET_PRICE_DAYS` (90), once there are at least `MARKET_PRICE_MIN_SALES` (3). Until then it is the cheapest NM listing for sale, marked `source: "listings"`.
+- **Nightly job:** `src/scripts/market_prices.py` rebuilds `market_prices`, as the second step of the Scryfall sync workflow (it runs even if the sync fails). A sale shows up in the market price the next night. Run it by hand with `cd src && ../.venv/bin/python -m scripts.market_prices`.
+- **History:** `price_snapshots` only gets a row on days a price changed, which keeps it small; the price on any day is the latest row on or before it. `price-history` starts with the price in force when the period began.
+- **Suggested price:** the market price scaled to the listing's condition. With no market price yet, Scryfall's TCGplayer price for that finish, scaled the same way and marked `source: "reference"`, but only in the printing's own language.
+
+## Payment testing checklist
+
+The automated tests only use a fake Stripe. Run these by hand in Stripe test mode before relying on payments, first locally (see "Testing payments locally"), then once against the deployed API.
+
+Locally:
+
+- [ ] **Seller setup:** `POST /v1/sellers/me/onboarding`, finish Stripe's forms with test values, then `GET /v1/sellers/me` shows `can_sell: true`. This also confirms Stripe accepts US Express accounts that only request the `transfers` capability.
+- [ ] **Account updates:** the `stripe listen` output shows `account.updated` arriving with a 200.
+- [ ] **Multi-seller checkout:** cart with listings from two sellers, `POST /v1/checkout`, the Stripe page shows one line per seller with shipping included.
+- [ ] **Paying:** card `4242 4242 4242 4242`. `GET /v1/checkout/{id}` turns `paid`, both orders are `paid`, the copies leave the sellers' collections and the cart is empty.
+- [ ] **Declined card:** `4000 0000 0000 0002`. Nothing changes and the checkout stays `open`.
+- [ ] **Shipping pays the seller:** `POST /v1/orders/{id}/ship`. A transfer of `seller_payout_cents` appears under Connect → the seller's account, and the order gets `paid_out_at`.
+- [ ] **Refund:** `POST /v1/orders/{id}/refund` on an unshipped order. The payment shows a partial refund of that order's total. With `PAYOUT_ON=paid`, the transfer is reversed first.
+- [ ] **Cancel:** `POST /v1/checkout/{id}/cancel`. The copies are back on sale and the Stripe page says the session expired.
+- [ ] **Expiry:** leave a checkout unpaid past `CHECKOUT_HOLD_MINUTES`. `checkout.session.expired` arrives (Stripe can take a few minutes) and the copies are back on sale.
+- [ ] **Dispute:** pay with `4000 0000 0000 0259`. The checkout's orders become `disputed`.
+- [ ] **Redelivery:** resend a `checkout.session.completed` event from the dashboard (Developers → Events → Resend). It returns 200 and changes nothing.
+
+Deployed (test mode):
+
+- [ ] **Migration:** `alembic upgrade head` against production, then `alembic current` shows `0005`.
+- [ ] **Webhook endpoint and secrets:** created and stored as in "Deployed webhook", then redeployed.
+- [ ] **One real purchase:** repeat seller setup, paying and shipping against the Cloud Run URL. The endpoint's deliveries in the Stripe dashboard all show 200.
+
 ## Before launch
 
 Decisions and switches to settle before taking real money:
@@ -199,4 +237,7 @@ Decisions and switches to settle before taking real money:
 - [ ] **Frontend:** set `FRONTEND_URL` and `CORS_ORIGINS` in `deploy/cloudrun.env.yaml` to the real web app.
 - [ ] **API docs:** decide whether `/docs` stays public.
 - [ ] **Backups:** Supabase's free plan has no point-in-time recovery; schedule `pg_dump` backups once real orders exist.
+- [ ] **Price factors:** `CONDITION_PRICE_FACTORS`, `MARKET_PRICE_SALES`, `MARKET_PRICE_MIN_SALES` and `MARKET_PRICE_DAYS` (placeholders). Change their defaults in `src/utils/settings.py`: the nightly job (GitHub Actions) and the API (suggested prices) both use them, so environment variables would have to be set in both places.
+- [ ] **Price manipulation:** a seller can buy their own listings from a second account to push a market price up. The median of several sales limits this; before launch, consider ignoring sales between accounts that share a payment card or address, and watching for sellers with many sales to the same buyer.
+- [ ] **Emails:** order confirmation, "you sold something" and "your order shipped" emails aren't built yet (planned with Resend).
 - [ ] **Webhook monitoring:** if webhooks fail, held copies stay held until Stripe stops retrying (3 days). Watch the endpoint's delivery status in the Stripe dashboard (and Sentry).
