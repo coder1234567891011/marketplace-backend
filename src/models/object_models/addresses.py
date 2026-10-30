@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from models.model import _ORMBase
 
@@ -11,6 +11,8 @@ from models.model import _ORMBase
 # ----------------------------------------------------------------
 class AddressCreate(BaseModel):
     label: str | None = None
+    # Who the parcel is addressed to; needed to check out with this address.
+    recipient_name: str | None = Field(default=None, max_length=100)
     line1: str
     line2: str | None = None
     city: str

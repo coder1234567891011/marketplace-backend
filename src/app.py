@@ -4,11 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.address import router as address_router
 from routes.card import router as card_router
+from routes.cart import router as cart_router
+from routes.checkout import router as checkout_router
 from routes.collection import router as collection_router
 from routes.listing import router as listing_router
 from routes.order import router as order_router
 from routes.rating import router as rating_router
+from routes.seller import router as seller_router
 from routes.shipping import router as shipping_router
+from routes.stripe_webhook import router as stripe_webhook_router
 from routes.user import router as user_router
 from utils.errors import register_error_handlers
 from utils.rate_limit import RateLimitMiddleware
@@ -43,7 +47,8 @@ app.add_middleware(
 
 v1 = APIRouter(prefix="/v1")
 for router in (user_router, address_router, card_router, collection_router,
-               listing_router, order_router, rating_router, shipping_router):
+               listing_router, order_router, rating_router, shipping_router, seller_router, cart_router,
+               checkout_router, stripe_webhook_router):
     v1.include_router(router)
 app.include_router(v1)
 

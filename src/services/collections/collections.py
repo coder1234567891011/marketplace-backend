@@ -37,12 +37,13 @@ def check_finish(card: Card, finish: CardFinish) -> None:
 
 
 async def listed_quantities(session: AsyncSession, item_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, int]:
-    """Copies of each collection item held by active or pending listings."""
+    """Copies of each collection item held by active or pending listings,
+    including copies in buyers' open checkouts."""
     ids = list(item_ids)
     if not ids:
         return {}
     stmt = (
-        select(Listing.collection_item_id, func.sum(Listing.quantity_available))
+        select(Listing.collection_item_id, func.sum(Listing.quantity_available + Listing.quantity_reserved))
         .where(Listing.collection_item_id.in_(ids), Listing.status.in_(RESERVING))
         .group_by(Listing.collection_item_id)
     )

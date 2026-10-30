@@ -14,6 +14,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
@@ -136,6 +137,12 @@ class OrderStatus(str, enum.Enum):
     cancelled = "cancelled"
 
 
+class CheckoutStatus(str, enum.Enum):
+    open = "open"          # waiting for payment; the copies are held
+    paid = "paid"
+    expired = "expired"    # not paid in time, or cancelled; the copies were released
+
+
 class RatingRole(str, enum.Enum):
     buyer = "buyer"
     seller = "seller"
@@ -189,6 +196,7 @@ class Address(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     label: Mapped[str | None] = mapped_column()
+    recipient_name: Mapped[str | None] = mapped_column()
     line1: Mapped[str] = mapped_column(nullable=False)
     line2: Mapped[str | None] = mapped_column()
     city: Mapped[str] = mapped_column(nullable=False)
@@ -344,7 +352,11 @@ class Listing(Base):
         TextEnum(CardFinish), default=CardFinish.nonfoil, server_default=text("'nonfoil'")
     )
     language: Mapped[str] = mapped_column(default="en", server_default=text("'en'"))
+    # Copies buyers can still add to a checkout.
     quantity_available: Mapped[int] = mapped_column(Integer, default=1)
+    # Copies held by open checkouts. Payment sells them; expiry returns them
+    # to quantity_available.
+    quantity_reserved: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
     notes: Mapped[str | None] = mapped_column()
@@ -379,30 +391,103 @@ class ShippingRate(Base):
 
 
 # ----------------------------------------------------------------
-# ORDERS
+# CART
 # ----------------------------------------------------------------
-class Order(Base):
-    __tablename__ = "orders"
-    __table_args__ = (enum_check("status", OrderStatus),)
+class CartItem(Base):
+    """A listing in a buyer's cart. Nothing is held until checkout."""
+    __tablename__ = "cart_items"
+    __table_args__ = (UniqueConstraint("user_id", "listing_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    listing_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"))
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+    listing: Mapped[Listing] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
+# CHECKOUTS
+# ----------------------------------------------------------------
+class Checkout(Base):
+    """One payment by a buyer, covering one order per seller in their cart."""
+    __tablename__ = "checkouts"
+    __table_args__ = (
+        enum_check("status", CheckoutStatus),
+        Index("idx_checkouts_buyer", "buyer_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     buyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[CheckoutStatus] = mapped_column(
+        TextEnum(CheckoutStatus), default=CheckoutStatus.open, server_default=text("'open'")
+    )
+    total_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
+    stripe_checkout_session_id: Mapped[str | None] = mapped_column(unique=True)
+    # Stripe's hosted payment page; only valid while open.
+    stripe_checkout_url: Mapped[str | None] = mapped_column()
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column()
+    # Seller transfers are funded from this charge.
+    stripe_charge_id: Mapped[str | None] = mapped_column()
+    expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    paid_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
+
+    orders: Mapped[list[Order]] = relationship(back_populates="checkout", lazy="raise")
+
+
+# ----------------------------------------------------------------
+# ORDERS
+# ----------------------------------------------------------------
+class Order(Base):
+    """What a buyer bought from one seller in one checkout."""
+    __tablename__ = "orders"
+    __table_args__ = (
+        enum_check("status", OrderStatus),
+        Index("idx_orders_buyer", "buyer_id", "created_at"),
+        Index("idx_orders_seller", "seller_id", "created_at"),
+        Index("idx_orders_checkout", "checkout_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Null only for orders made before checkout existed.
+    checkout_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("checkouts.id"))
+    buyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     seller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
-    stripe_payment_intent_id: Mapped[str | None] = mapped_column(unique=True)
     subtotal_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     shipping_cents: Mapped[int] = mapped_column(Integer, default=0)
     total_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
+    # The fee terms in force when the order was placed, and what they came to.
+    fee_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal(0), server_default=text("0"))
+    fee_fixed_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    platform_fee_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    seller_payout_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
 
     status: Mapped[OrderStatus] = mapped_column(
         TextEnum(OrderStatus), default=OrderStatus.pending, server_default=text("'pending'")
     )
     shipping_address_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("addresses.id"))
+    # Copied at checkout, so editing or deleting the address can't change where an order goes.
+    shipping_address: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
+    shipping_rate_name: Mapped[str | None] = mapped_column()
     tracking_number: Mapped[str | None] = mapped_column()
+
+    stripe_transfer_id: Mapped[str | None] = mapped_column()
+    stripe_refund_id: Mapped[str | None] = mapped_column()
+    paid_at: Mapped[datetime | None]
+    shipped_at: Mapped[datetime | None]
+    delivered_at: Mapped[datetime | None]
+    paid_out_at: Mapped[datetime | None]
 
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
 
+    checkout: Mapped[Checkout | None] = relationship(back_populates="orders", lazy="raise")
     items: Mapped[list[OrderItem]] = relationship(back_populates="order", lazy="raise")
 
 
@@ -410,15 +495,40 @@ class Order(Base):
 # ORDER ITEMS
 # ----------------------------------------------------------------
 class OrderItem(Base):
+    """Copies bought from one listing, as they were described at checkout."""
     __tablename__ = "order_items"
+    __table_args__ = (
+        enum_check("condition", CardCondition),
+        enum_check("finish", CardFinish),
+        Index("idx_order_items_order", "order_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
     listing_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("listings.id"))
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id"))
+    condition: Mapped[CardCondition] = mapped_column(TextEnum(CardCondition))
+    finish: Mapped[CardFinish] = mapped_column(TextEnum(CardFinish))
+    language: Mapped[str] = mapped_column(nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
+    # Price of one copy.
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
 
     order: Mapped[Order] = relationship(back_populates="items", lazy="raise")
+    card: Mapped[Card] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
+# STRIPE WEBHOOK EVENTS
+# ----------------------------------------------------------------
+class StripeEvent(Base):
+    """Webhook events already handled. Stripe can deliver an event more than
+    once; recording it in the same transaction makes handling idempotent."""
+    __tablename__ = "stripe_events"
+
+    id: Mapped[str] = mapped_column(primary_key=True)
+    type: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
 
 # ----------------------------------------------------------------

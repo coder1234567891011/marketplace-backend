@@ -18,6 +18,10 @@ Settings are read from environment variables (or `src/.env` locally):
 | `FORWARDED_FOR_HOPS` | With `x-forwarded-for`: which entry from the right is the client. `1` on Cloud Run, `2` behind a Google load balancer |
 | `RATE_LIMIT_ENABLED` | `true` by default |
 | `RATE_LIMIT_PER_IP_PER_MINUTE` | Per-IP ceiling across all endpoints, default `300`. Per-user write limits are in `src/utils/limits.py` |
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_test_…` until launch). Payment endpoints return 503 without it |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret of the webhook endpoint (`whsec_…`) |
+| `FRONTEND_URL` | The web app; Stripe sends buyers and sellers back here. Defaults to `http://localhost:8081` |
+| `PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS`, `CHECKOUT_HOLD_MINUTES`, `PAYOUT_ON` | Marketplace terms, see "Cart, checkout and payments" |
 
 ## Access rules
 
@@ -57,10 +61,40 @@ Endpoints (no login needed):
 
 - **Finish and language:** collection items and listings have `finish` (`nonfoil`, `foil`, `etched`, checked against the printing's finishes) and `language` (Scryfall codes such as `en`, `ja`).
 - **Import:** `POST /v1/collections/{id}/import` takes `{"format": "decklist" | "csv", "text": …}`. Decklists accept Arena/MTGO lines (`4 Lightning Bolt (M10) 146 *F*`); CSVs need a header row (Moxfield, ManaBox, Deckbox exports work). Add `?dry_run=true` to preview. Unmatched lines are returned, not fatal; lines without a set get the newest released, regular printing and a `note` saying so. Cards already in the collection (same printing, finish, condition, language) get their quantity raised.
-- **Reserved copies:** a listing made from a collection item holds `quantity_available` of its copies while active or pending sale (`quantity_listed` on the item). You can't list more than are free, lower the item below what's listed, or delete it while listed.
-- **Listing status:** `active → pending_sale → sold`, `pending_sale → active` (checkout released), `active → removed`. Sellers only remove; checkout makes the other changes.
-- **Browsing (no login):** `GET /v1/listings/card/{card_id}` (cheapest first; filters `condition`, `finish`, `language`), `GET /v1/listings/card/{card_id}/summary` (per condition and finish: count, quantity, lowest price), `GET /v1/listings/user/{user_id}` (storefront; `q`, `sort=newest|price_asc|price_desc`). Listings from banned or suspended sellers are hidden.
+- **Reserved copies:** a listing made from a collection item holds `quantity_available` plus `quantity_reserved` (copies in buyers' open checkouts) of its copies while active or pending sale (`quantity_listed` on the item). You can't list more than are free, lower the item below what's listed, or delete it while listed.
+- **Listing status:** `active → pending_sale → sold`, `pending_sale → active` (checkout released), `active → removed`. Sellers only remove (not while copies are in a checkout); checkout makes the other changes.
+- **Browsing (no login):** `GET /v1/listings/card/{card_id}` (cheapest first; filters `condition`, `finish`, `language`), `GET /v1/listings/card/{card_id}/summary` (per condition and finish: count, quantity, lowest price), `GET /v1/listings/user/{user_id}` (storefront; `q`, `sort=newest|price_asc|price_desc`). Listings from banned or suspended sellers, and from sellers who haven't finished payout setup, are hidden.
 - **Shipping:** sellers keep up to 10 flat rates at `/v1/shipping-rates` (public list at `/v1/shipping-rates/user/{user_id}`).
+
+## Cart, checkout and payments
+
+Payments use Stripe: Checkout (Stripe's hosted payment page) and Connect Express accounts for sellers, with "separate charges and transfers": the buyer pays the platform once per checkout, and each seller's share is transferred to them. Every Stripe call goes through `services/payments/stripe_gateway.py`.
+
+- **Sellers:** `POST /v1/sellers/me/onboarding` returns a Stripe link for payout setup; `GET /v1/sellers/me` says whether they `can_sell`; `POST /v1/sellers/me/dashboard` opens their Stripe dashboard. Listings can only be bought from sellers who can be paid.
+- **Cart:** `PUT /v1/cart/items/{listing_id}` with `{"quantity": n}`, `DELETE` to remove, `GET /v1/cart` grouped by seller, with any lines that can't be bought (`problem`) and each seller's shipping rates. The cart holds nothing.
+- **Checkout:** `POST /v1/checkout` with `{"shipping_address_id": …, "shipping_rates": {seller_id: rate_id}}` (sellers left out get their cheapest rate; the address needs a `recipient_name`). It creates one order per seller, holds the copies (`quantity_available → quantity_reserved`) and returns `url`, Stripe's payment page. The hold lasts `CHECKOUT_HOLD_MINUTES`; a buyer has one open checkout at a time and can cancel it (`POST /v1/checkout/{id}/cancel`). After paying, Stripe sends the buyer to `FRONTEND_URL/checkout/{id}?result=success`; poll `GET /v1/checkout/{id}` until `status` is `paid`.
+- **Webhook:** `POST /v1/stripe/webhook`. Payment marks orders `paid`, sells the held copies (removing them from the seller's collection) and empties those cart lines; expiry puts the copies back on sale and cancels the orders. Events are recorded in `stripe_events`, so redeliveries are ignored.
+- **Orders:** sellers `POST /v1/orders/{id}/ship` (optional `tracking_number`) or `/refund` (full refund of an unshipped order); buyers `POST /v1/orders/{id}/received`, which allows ratings. Sellers only see orders once paid. A dispute webhook marks the checkout's orders `disputed`.
+- **Fees and payouts:** each order records its fee terms, the `platform_fee_cents` and the `seller_payout_cents` (total minus fee). The seller is paid when they ship (`PAYOUT_ON=shipped`) or when the buyer pays (`PAYOUT_ON=paid`); a refund reverses the payout first. Terms are settings (`PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS`, `CHECKOUT_HOLD_MINUTES`, `PAYOUT_ON` in `deploy/cloudrun.env.yaml`); the current values are placeholders.
+
+### Testing payments locally
+
+Put test keys in `src/.env`: `STRIPE_SECRET_KEY=sk_test_…`, plus the `whsec_…` secret that `stripe listen` prints as `STRIPE_WEBHOOK_SECRET`. Then, with the API running on port 8000:
+
+```bash
+stripe listen --forward-to localhost:8000/v1/stripe/webhook --forward-connect-to localhost:8000/v1/stripe/webhook
+```
+
+Pay on the checkout page with card `4242 4242 4242 4242`, any future date and any CVC. Test-mode sellers can finish onboarding with Stripe's test values (for example SSN `000-00-0000`). The automated tests use an in-memory fake (`tests/fake_stripe.py`) and never call Stripe.
+
+### Deployed webhook
+
+In the Stripe dashboard (test mode), go to Developers → Webhooks → Add endpoint, at `https://YOUR-SERVICE-URL/v1/stripe/webhook`. Choose "Listen to events on Connected accounts" as well as your account, and select `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, `charge.dispute.created` and `account.updated`. Store its signing secret and the secret key in Secret Manager, then redeploy:
+
+```bash
+set -a; source src/.env; set +a
+STRIPE_WEBHOOK_SECRET_PROD=whsec_… GCP_PROJECT=your-project-id ./deploy/cloudrun-setup.sh
+```
 
 ## Migrations
 
@@ -149,3 +183,20 @@ GCP_PROJECT=your-project-id ./deploy/cloudrun-reopen.sh
 A tripped check keeps tripping until its cause goes away, so reopening in the same month closes the API again within the hour (usage) or at the next budget update. Wait for the new month (Pacific time), raise the limit, or, for Artifact Registry storage, delete old images. Deploying doesn't reopen a closed API.
 
 Two things keep normal costs at zero: the setup scripts set Artifact Registry cleanup policies (keep the 2 newest images), and the setup script destroys replaced secret versions (Secret Manager's free tier counts every version that isn't destroyed).
+
+## Before launch
+
+Decisions and switches to settle before taking real money:
+
+- [ ] **Fees:** `PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS` (placeholder: 5%, no fixed fee, no minimum). Stripe's own fees come out of the platform's share (2.9% + 30¢ per checkout, plus Connect's per-payout and monthly active-account fees), so check that cheap orders still cover them.
+- [ ] **Payout timing:** `PAYOUT_ON` (`shipped` or `paid`). If sellers are paid on shipping, decide what happens when an order is never shipped (auto-refund after N days).
+- [ ] **Hold time:** `CHECKOUT_HOLD_MINUTES` (30 to 1440).
+- [ ] **Refunds and disputes:** today sellers can fully refund unshipped orders, buyers can't cancel, and disputes are only flagged. Decide on buyer cancellation, partial refunds, refunds after shipping, and who resolves disputes.
+- [ ] **Delivery:** buyers confirm delivery by hand; consider confirming automatically some days after shipping so ratings unlock.
+- [ ] **Sales tax:** check marketplace facilitator rules for where you sell (Stripe Tax or a provider).
+- [ ] **Stripe account:** activate live mode (business details, bank account), set Connect branding, and publish terms of service and a refund policy (Stripe asks for their URLs).
+- [ ] **Live keys:** store the live secret key and a live webhook endpoint's secret (`deploy/cloudrun-setup.sh`), configured with the events listed above.
+- [ ] **Frontend:** set `FRONTEND_URL` and `CORS_ORIGINS` in `deploy/cloudrun.env.yaml` to the real web app.
+- [ ] **API docs:** decide whether `/docs` stays public.
+- [ ] **Backups:** Supabase's free plan has no point-in-time recovery; schedule `pg_dump` backups once real orders exist.
+- [ ] **Webhook monitoring:** if webhooks fail, held copies stay held until Stripe stops retrying (3 days). Watch the endpoint's delivery status in the Stripe dashboard (and Sentry).

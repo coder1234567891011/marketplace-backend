@@ -33,9 +33,12 @@ docker build --platform linux/amd64 --tag "$IMAGE" .
 docker push "$IMAGE"
 
 SECRETS="DATABASE_URL=database-url:latest"
-if gcloud secrets describe sentry-dsn --project "$GCP_PROJECT" >/dev/null 2>&1; then
-  SECRETS="$SECRETS,SENTRY_DSN=sentry-dsn:latest"
-fi
+# Optional secrets: each is passed only once it exists in Secret Manager.
+for pair in SENTRY_DSN=sentry-dsn STRIPE_SECRET_KEY=stripe-secret-key STRIPE_WEBHOOK_SECRET=stripe-webhook-secret; do
+  if gcloud secrets describe "${pair#*=}" --project "$GCP_PROJECT" >/dev/null 2>&1; then
+    SECRETS="$SECRETS,${pair}:latest"
+  fi
+done
 
 # --max-instances 1: rate-limit counters are kept in memory, so they're only
 # accurate with a single instance.

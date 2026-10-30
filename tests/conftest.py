@@ -8,7 +8,7 @@ Authentication is faked: verify_token is patched so that the bearer token
 """
 import os
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -17,13 +17,15 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import insert, text
+from sqlalchemy import insert, text, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 from sqlalchemy.pool import NullPool
 
 import auth.auth
 from app import app
-from models.database import Card, Order, OrderStatus, auth_users
+from fake_stripe import FakeStripe
+from models.database import Card, Order, OrderStatus, User, auth_users
+from services.payments import stripe_gateway
 from services.persistence.database import create_engine, get_session
 from utils.rate_limit import limiter
 
@@ -86,6 +88,15 @@ async def client(conn: AsyncConnection, monkeypatch: pytest.MonkeyPatch) -> Asyn
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(autouse=True)
+def fake_stripe() -> Iterator[FakeStripe]:
+    """Every test talks to an in-memory Stripe, never the real one."""
+    fake = FakeStripe()
+    stripe_gateway.use_gateway(fake)
+    yield fake
+    stripe_gateway.use_gateway(None)
+
+
 def as_user(user_id: uuid.UUID) -> dict[str, str]:
     return {"Authorization": f"Bearer {user_id}"}
 
@@ -100,13 +111,20 @@ async def add_auth_user(db: AsyncSession, confirmed: bool = True) -> uuid.UUID:
 
 
 @pytest.fixture
-def make_user(client: AsyncClient, db: AsyncSession):  # type: ignore[no-untyped-def]
-    """Create an auth user plus their marketplace profile; returns the id."""
-    async def _make(username: str | None = None) -> uuid.UUID:
+def make_user(client: AsyncClient, db: AsyncSession, fake_stripe: FakeStripe):  # type: ignore[no-untyped-def]
+    """Create an auth user plus their marketplace profile; returns the id.
+    Users can be paid (finished Stripe onboarding) unless can_sell=False."""
+    async def _make(username: str | None = None, can_sell: bool = True) -> uuid.UUID:
         user_id = await add_auth_user(db)
         resp = await client.post("/v1/users/me", json={"username": username or f"u{user_id.hex[:10]}"},
                                  headers=as_user(user_id))
         assert resp.status_code == 201, resp.text
+        if can_sell:
+            account_id = f"acct_{str(user_id)[:8]}"
+            fake_stripe.accounts[account_id] = True
+            await db.execute(update(User).where(User.id == user_id).values(
+                stripe_connect_account_id=account_id, stripe_connect_onboarded=True))
+            await db.flush()
         return user_id
     return _make
 
