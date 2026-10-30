@@ -15,6 +15,7 @@ from routes.seller import router as seller_router
 from routes.shipping import router as shipping_router
 from routes.stripe_webhook import router as stripe_webhook_router
 from routes.user import router as user_router
+from routes.wants import router as wants_router
 from utils.errors import register_error_handlers
 from utils.rate_limit import RateLimitMiddleware
 from utils.settings import settings
@@ -49,7 +50,7 @@ app.add_middleware(
 v1 = APIRouter(prefix="/v1")
 for router in (user_router, address_router, card_router, collection_router,
                listing_router, order_router, rating_router, shipping_router, seller_router, cart_router,
-               checkout_router, stripe_webhook_router, scan_router):
+               checkout_router, stripe_webhook_router, scan_router, wants_router):
     v1.include_router(router)
 app.include_router(v1)
 

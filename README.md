@@ -189,6 +189,17 @@ A tripped check keeps tripping until its cause goes away, so reopening in the sa
 
 Two things keep normal costs at zero: the setup scripts set Artifact Registry cleanup policies (keep the 2 newest images), and the setup script destroys replaced secret versions (Secret Manager's free tier counts every version that isn't destroyed).
 
+## Wants lists and the cart optimizer
+
+Lists of cards a user is looking for (up to 50 lists of 500 cards), under `/v1/wants`:
+
+- **Items:** `POST /v1/wants/{id}/items` with a `card_id` and `any_printing` (default true; false wants exactly that printing), plus optional `quantity`, `min_condition` (the worst acceptable), `finish`, `language` and `max_price_cents`. Or paste a decklist: `POST /v1/wants/{id}/import` with `{"text": …}`. Lines with a set and number (`1 Lightning Helix (RAV) 213`) want that printing; the rest want any printing. Cards already on the list get their quantity raised.
+- **Status:** `GET /v1/wants/{id}/items` shows each item with `owned` (copies in the caller's collections, any condition), `available` (matching copies for sale, not the caller's own) and `lowest_price_cents`.
+- **Price alerts:** `GET /v1/wants/{id}/alerts` lists listings at or under an item's `max_price_cents`. Nothing is pushed yet; that comes with emails or notifications.
+- **Optimizer:** `POST /v1/wants/{id}/optimize` (`skip_owned`, default true; `add_to_cart`) returns the cheapest way found to buy the list. It counts card prices plus each seller's cheapest shipping rate once per seller (what checkout uses by default), ignores sellers without shipping rates, and reports `missing` copies nobody sells. With `add_to_cart` the plan's listings go into the cart, replacing those listings' quantities already there.
+
+The optimizer (`services/wants/optimizer.py`) is greedy: it fills each card from the cheapest offer, counting a seller's shipping when they're new to the plan, then moves cards off sellers whenever that lowers the total. It also tries building the plan around each of the 20 sellers who sell the most of the list. It isn't guaranteed to find the cheapest plan; an integer program (OR-Tools) would, if the savings ever justify it. A 100-card list across 200 sellers takes about a second.
+
 ## Card scanning
 
 The app reads the text on a card with OCR on the device (for example Tesseract.js) and the API matches it against the catalog, so scanning costs nothing per card and doesn't load the server. Photos are optional and go straight from the app to a storage bucket.

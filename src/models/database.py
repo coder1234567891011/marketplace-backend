@@ -376,6 +376,55 @@ class CollectionItem(Base):
 
 
 # ----------------------------------------------------------------
+# WANTS LISTS
+# ----------------------------------------------------------------
+class WantsList(Base):
+    """Cards a user is looking for, e.g. a deck they're building."""
+    __tablename__ = "wants_lists"
+    __table_args__ = (Index("idx_wants_lists_user", "user_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
+
+    # Deleting a list deletes its items (ON DELETE CASCADE in the database).
+    items: Mapped[list[WantItem]] = relationship(back_populates="wants_list", lazy="raise", passive_deletes=True,
+                                                 order_by="WantItem.created_at, WantItem.id")
+
+
+class WantItem(Base):
+    """A wanted card: any printing of it (any_printing; card_id is then the
+    printing shown) or exactly card_id. Null finish or language means any;
+    min_condition is the worst acceptable."""
+    __tablename__ = "want_items"
+    __table_args__ = (
+        enum_check("min_condition", CardCondition),
+        enum_check("finish", CardFinish),
+        Index("idx_want_items_list", "wants_list_id"),
+        Index("idx_want_items_oracle", "oracle_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    wants_list_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("wants_lists.id", ondelete="CASCADE"))
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id"))
+    # The card's oracle_id, copied so any-printing matches don't need a join.
+    oracle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    any_printing: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    min_condition: Mapped[CardCondition | None] = mapped_column(TextEnum(CardCondition))
+    finish: Mapped[CardFinish | None] = mapped_column(TextEnum(CardFinish))
+    language: Mapped[str | None] = mapped_column()
+    # Alert when a copy is listed at or under this price.
+    max_price_cents: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+    wants_list: Mapped[WantsList] = relationship(back_populates="items", lazy="raise")
+    card: Mapped[Card] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
 # SCANS
 # ----------------------------------------------------------------
 class Scan(Base):

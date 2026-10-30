@@ -245,7 +245,7 @@ def _same_card(card: Card, name: str | None) -> bool:
     return wanted in (card.name.lower(), card.name.lower().split(" // ")[0])
 
 
-async def _resolve(
+async def resolve_lines(
     session: AsyncSession, lines: list[importer.ParsedLine]
 ) -> dict[int, tuple[Card, str | None]]:
     """Match parsed lines to printings. Returns {line number: (card, note)}."""
@@ -315,7 +315,7 @@ async def import_collection_items(
         raise BadRequest(str(e)) from e
     unmatched = [_problem(e) for e in errors]
 
-    resolved = await _resolve(session, lines)
+    resolved = await resolve_lines(session, lines)
     matched: list[ImportedLine] = []
     for ln in lines:
         if ln.line not in resolved:
