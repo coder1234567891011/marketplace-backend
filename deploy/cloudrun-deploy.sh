@@ -6,7 +6,8 @@
 # Usage (from the repo root):
 #   GCP_PROJECT=my-project ./deploy/cloudrun-deploy.sh
 #
-# Run database migrations first if there are new ones:
+# The Deploy workflow migrates the database first; when deploying from a
+# laptop, do that yourself if there are new migrations:
 #   cd src && ../.venv/bin/alembic upgrade head
 set -euo pipefail
 
@@ -33,9 +34,13 @@ docker build --platform linux/amd64 --tag "$IMAGE" .
 docker push "$IMAGE"
 
 SECRETS="DATABASE_URL=database-url:latest"
-if gcloud secrets describe sentry-dsn --project "$GCP_PROJECT" >/dev/null 2>&1; then
-  SECRETS="$SECRETS,SENTRY_DSN=sentry-dsn:latest"
-fi
+# Optional secrets: each is passed only once it exists in Secret Manager.
+for pair in SENTRY_DSN=sentry-dsn STRIPE_SECRET_KEY=stripe-secret-key STRIPE_WEBHOOK_SECRET=stripe-webhook-secret \
+    STORAGE_SECRET_ACCESS_KEY=storage-secret-access-key RESEND_API_KEY=resend-api-key; do
+  if gcloud secrets describe "${pair#*=}" --project "$GCP_PROJECT" >/dev/null 2>&1; then
+    SECRETS="$SECRETS,${pair}:latest"
+  fi
+done
 
 # --max-instances 1: rate-limit counters are kept in memory, so they're only
 # accurate with a single instance.

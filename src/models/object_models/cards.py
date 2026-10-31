@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from models.model import _ORMBase
+from models.object_models.prices import MarketPriceRead
 
 
 # ----------------------------------------------------------------
@@ -60,3 +61,8 @@ class CardName(BaseModel):
     """An autocomplete suggestion: one card, across all its printings."""
     oracle_id: uuid.UUID
     name: str
+
+
+class CardWithPrices(CardDetail):
+    """A printing with its marketplace prices (NM, per finish and language)."""
+    market_prices: list[MarketPriceRead] = []

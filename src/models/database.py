@@ -14,6 +14,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
@@ -62,6 +63,7 @@ auth_users = Table(
     "users",
     Base.metadata,
     Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("email", Text),
     Column("email_confirmed_at", DateTime(timezone=True)),
     schema="auth",
 )
@@ -112,6 +114,13 @@ class CardFinish(str, enum.Enum):
     etched = "etched"
 
 
+class ScanStatus(str, enum.Enum):
+    pending = "pending"        # waiting for the text read from the photo
+    matched = "matched"        # has candidate printings for the user to confirm
+    unmatched = "unmatched"    # nothing in the catalog matched the text
+    confirmed = "confirmed"    # added to a collection
+
+
 class RecognitionStatus(str, enum.Enum):
     pending = "pending"
     confirmed = "confirmed"
@@ -136,9 +145,74 @@ class OrderStatus(str, enum.Enum):
     cancelled = "cancelled"
 
 
+class CheckoutStatus(str, enum.Enum):
+    open = "open"          # waiting for payment; the copies are held
+    paid = "paid"
+    expired = "expired"    # not paid in time, or cancelled; the copies were released
+
+
 class RatingRole(str, enum.Enum):
     buyer = "buyer"
     seller = "seller"
+
+
+class IssueReason(str, enum.Enum):
+    not_received = "not_received"
+    not_as_described = "not_as_described"   # wrong card, condition, finish or language
+    other = "other"
+
+
+class IssueStatus(str, enum.Enum):
+    open = "open"            # waiting for the seller
+    escalated = "escalated"  # waiting for the marketplace to decide
+    resolved = "resolved"
+
+
+class IssueResolution(str, enum.Enum):
+    refunded = "refunded"    # some or all of the order was refunded
+    no_refund = "no_refund"  # decided for the seller
+    withdrawn = "withdrawn"  # the buyer closed it
+
+
+class ReportTarget(str, enum.Enum):
+    listing = "listing"
+    user = "user"
+    rating = "rating"
+
+
+class ReportReason(str, enum.Enum):
+    counterfeit = "counterfeit"
+    misdescribed = "misdescribed"
+    scam = "scam"
+    harassment = "harassment"
+    spam = "spam"
+    other = "other"
+
+
+class ReportStatus(str, enum.Enum):
+    open = "open"
+    actioned = "actioned"    # a moderator acted on it
+    dismissed = "dismissed"
+
+
+class ModerationActionType(str, enum.Enum):
+    set_account_status = "set_account_status"
+    remove_listing = "remove_listing"
+    remove_rating = "remove_rating"
+    resolve_report = "resolve_report"
+    resolve_issue = "resolve_issue"
+
+
+class EmailStatus(str, enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"      # gave up after settings.email_max_attempts
+    skipped = "skipped"    # email isn't configured, or the user has no address
+
+
+class PriceSource(str, enum.Enum):
+    sales = "sales"          # median of recent sales on the marketplace
+    listings = "listings"    # not enough sales: the cheapest NM listing for sale
 
 
 # ----------------------------------------------------------------
@@ -164,6 +238,8 @@ class User(Base):
         TextEnum(AccountStatus), default=AccountStatus.active, server_default=text("'active'")
     )
     email_verified: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    # Moderators: set by hand in the database (see README "Moderation").
+    is_admin: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
 
     seller_rating_avg: Mapped[float | None] = mapped_column(Numeric(3, 2))
     seller_rating_count: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
@@ -189,6 +265,7 @@ class Address(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     label: Mapped[str | None] = mapped_column()
+    recipient_name: Mapped[str | None] = mapped_column()
     line1: Mapped[str] = mapped_column(nullable=False)
     line2: Mapped[str | None] = mapped_column()
     city: Mapped[str] = mapped_column(nullable=False)
@@ -264,6 +341,43 @@ class CardPrice(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
 
+class MarketPrice(Base):
+    """A card's price on the marketplace, in NM condition, per finish and
+    language. Rebuilt nightly by scripts/market_prices.py; other conditions
+    are priced with settings.condition_price_factors."""
+    __tablename__ = "market_prices"
+    __table_args__ = (
+        enum_check("finish", CardFinish),
+        enum_check("source", PriceSource),
+    )
+
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id", ondelete="CASCADE"), primary_key=True)
+    finish: Mapped[CardFinish] = mapped_column(TextEnum(CardFinish), primary_key=True)
+    language: Mapped[str] = mapped_column(primary_key=True)
+    price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[PriceSource] = mapped_column(TextEnum(PriceSource))
+    # Sales the price was taken from (0 when it comes from listings).
+    sales_count: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    computed_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+class PriceSnapshot(Base):
+    """Market price history, for charts. A row is only written on days the
+    price changed, so the price on any day is the latest row on or before it."""
+    __tablename__ = "price_snapshots"
+    __table_args__ = (
+        enum_check("finish", CardFinish),
+        enum_check("source", PriceSource),
+    )
+
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id", ondelete="CASCADE"), primary_key=True)
+    finish: Mapped[CardFinish] = mapped_column(TextEnum(CardFinish), primary_key=True)
+    language: Mapped[str] = mapped_column(primary_key=True)
+    day: Mapped[date] = mapped_column(primary_key=True)
+    price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[PriceSource] = mapped_column(TextEnum(PriceSource))
+
+
 # ----------------------------------------------------------------
 # COLLECTIONS
 # ----------------------------------------------------------------
@@ -319,6 +433,91 @@ class CollectionItem(Base):
 
 
 # ----------------------------------------------------------------
+# WANTS LISTS
+# ----------------------------------------------------------------
+class WantsList(Base):
+    """Cards a user is looking for, e.g. a deck they're building."""
+    __tablename__ = "wants_lists"
+    __table_args__ = (Index("idx_wants_lists_user", "user_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
+
+    # Deleting a list deletes its items (ON DELETE CASCADE in the database).
+    items: Mapped[list[WantItem]] = relationship(back_populates="wants_list", lazy="raise", passive_deletes=True,
+                                                 order_by="WantItem.created_at, WantItem.id")
+
+
+class WantItem(Base):
+    """A wanted card: any printing of it (any_printing; card_id is then the
+    printing shown) or exactly card_id. Null finish or language means any;
+    min_condition is the worst acceptable."""
+    __tablename__ = "want_items"
+    __table_args__ = (
+        enum_check("min_condition", CardCondition),
+        enum_check("finish", CardFinish),
+        Index("idx_want_items_list", "wants_list_id"),
+        Index("idx_want_items_oracle", "oracle_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    wants_list_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("wants_lists.id", ondelete="CASCADE"))
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id"))
+    # The card's oracle_id, copied so any-printing matches don't need a join.
+    oracle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    any_printing: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    min_condition: Mapped[CardCondition | None] = mapped_column(TextEnum(CardCondition))
+    finish: Mapped[CardFinish | None] = mapped_column(TextEnum(CardFinish))
+    language: Mapped[str | None] = mapped_column()
+    # Alert when a copy is listed at or under this price.
+    max_price_cents: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+    wants_list: Mapped[WantsList] = relationship(back_populates="items", lazy="raise")
+    card: Mapped[Card] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
+# SCANS
+# ----------------------------------------------------------------
+class Scan(Base):
+    """A photo of one card and what it was recognized as. The app reads the
+    text on the card itself (OCR on the device) and sends it; the API matches
+    it against the catalog. The photo is optional and lives in the storage
+    bucket, not the database."""
+    __tablename__ = "scans"
+    __table_args__ = (
+        enum_check("status", ScanStatus),
+        Index("idx_scans_user", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[ScanStatus] = mapped_column(
+        TextEnum(ScanStatus), default=ScanStatus.pending, server_default=text("'pending'")
+    )
+    # Object key in the storage bucket, e.g. scans/<user id>/<scan id>.jpg.
+    photo_key: Mapped[str | None] = mapped_column()
+    # What the device read: the collector line at the bottom left (set code,
+    # collector number, language) and the card's name.
+    collector_text: Mapped[str | None] = mapped_column()
+    name_text: Mapped[str | None] = mapped_column()
+    # Read from the collector line, when it says.
+    detected_language: Mapped[str | None] = mapped_column()
+    detected_foil: Mapped[bool | None] = mapped_column()
+    # Best first: [{"card_id": "…", "confidence": 0.98, "match": "collector_number" | "name"}].
+    candidates: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    collection_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("collection_items.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
+
+
+# ----------------------------------------------------------------
 # LISTINGS
 # ----------------------------------------------------------------
 class Listing(Base):
@@ -344,7 +543,11 @@ class Listing(Base):
         TextEnum(CardFinish), default=CardFinish.nonfoil, server_default=text("'nonfoil'")
     )
     language: Mapped[str] = mapped_column(default="en", server_default=text("'en'"))
+    # Copies buyers can still add to a checkout.
     quantity_available: Mapped[int] = mapped_column(Integer, default=1)
+    # Copies held by open checkouts. Payment sells them; expiry returns them
+    # to quantity_available.
+    quantity_reserved: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
     notes: Mapped[str | None] = mapped_column()
@@ -379,30 +582,107 @@ class ShippingRate(Base):
 
 
 # ----------------------------------------------------------------
-# ORDERS
+# CART
 # ----------------------------------------------------------------
-class Order(Base):
-    __tablename__ = "orders"
-    __table_args__ = (enum_check("status", OrderStatus),)
+class CartItem(Base):
+    """A listing in a buyer's cart. Nothing is held until checkout."""
+    __tablename__ = "cart_items"
+    __table_args__ = (UniqueConstraint("user_id", "listing_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    listing_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("listings.id", ondelete="CASCADE"))
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+    listing: Mapped[Listing] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
+# CHECKOUTS
+# ----------------------------------------------------------------
+class Checkout(Base):
+    """One payment by a buyer, covering one order per seller in their cart."""
+    __tablename__ = "checkouts"
+    __table_args__ = (
+        enum_check("status", CheckoutStatus),
+        Index("idx_checkouts_buyer", "buyer_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     buyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[CheckoutStatus] = mapped_column(
+        TextEnum(CheckoutStatus), default=CheckoutStatus.open, server_default=text("'open'")
+    )
+    total_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
+    stripe_checkout_session_id: Mapped[str | None] = mapped_column(unique=True)
+    # Stripe's hosted payment page; only valid while open.
+    stripe_checkout_url: Mapped[str | None] = mapped_column()
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column()
+    # Seller transfers are funded from this charge.
+    stripe_charge_id: Mapped[str | None] = mapped_column()
+    expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    paid_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
+
+    orders: Mapped[list[Order]] = relationship(back_populates="checkout", lazy="raise")
+
+
+# ----------------------------------------------------------------
+# ORDERS
+# ----------------------------------------------------------------
+class Order(Base):
+    """What a buyer bought from one seller in one checkout."""
+    __tablename__ = "orders"
+    __table_args__ = (
+        enum_check("status", OrderStatus),
+        Index("idx_orders_buyer", "buyer_id", "created_at"),
+        Index("idx_orders_seller", "seller_id", "created_at"),
+        Index("idx_orders_checkout", "checkout_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Null only for orders made before checkout existed.
+    checkout_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("checkouts.id"))
+    buyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     seller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
-    stripe_payment_intent_id: Mapped[str | None] = mapped_column(unique=True)
     subtotal_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     shipping_cents: Mapped[int] = mapped_column(Integer, default=0)
     total_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(default="usd", server_default=text("'usd'"))
+    # The fee terms in force when the order was placed, and what they came to.
+    fee_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal(0), server_default=text("0"))
+    fee_fixed_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    platform_fee_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    seller_payout_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    # Refunded to the buyer so far, and the part of that taken from the
+    # seller's payout (the platform covers the rest; see orders.refund).
+    refunded_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    seller_refunded_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
 
     status: Mapped[OrderStatus] = mapped_column(
         TextEnum(OrderStatus), default=OrderStatus.pending, server_default=text("'pending'")
     )
     shipping_address_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("addresses.id"))
+    # Copied at checkout, so editing or deleting the address can't change where an order goes.
+    shipping_address: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
+    shipping_rate_name: Mapped[str | None] = mapped_column()
     tracking_number: Mapped[str | None] = mapped_column()
+
+    stripe_transfer_id: Mapped[str | None] = mapped_column()
+    stripe_refund_id: Mapped[str | None] = mapped_column()
+    paid_at: Mapped[datetime | None]
+    shipped_at: Mapped[datetime | None]
+    delivered_at: Mapped[datetime | None]
+    paid_out_at: Mapped[datetime | None]
 
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
 
+    checkout: Mapped[Checkout | None] = relationship(back_populates="orders", lazy="raise")
     items: Mapped[list[OrderItem]] = relationship(back_populates="order", lazy="raise")
 
 
@@ -410,15 +690,41 @@ class Order(Base):
 # ORDER ITEMS
 # ----------------------------------------------------------------
 class OrderItem(Base):
+    """Copies bought from one listing, as they were described at checkout."""
     __tablename__ = "order_items"
+    __table_args__ = (
+        enum_check("condition", CardCondition),
+        enum_check("finish", CardFinish),
+        Index("idx_order_items_order", "order_id"),
+        Index("idx_order_items_card", "card_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
     listing_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("listings.id"))
+    card_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cards.id"))
+    condition: Mapped[CardCondition] = mapped_column(TextEnum(CardCondition))
+    finish: Mapped[CardFinish] = mapped_column(TextEnum(CardFinish))
+    language: Mapped[str] = mapped_column(nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
+    # Price of one copy.
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
 
     order: Mapped[Order] = relationship(back_populates="items", lazy="raise")
+    card: Mapped[Card] = relationship(lazy="raise")
+
+
+# ----------------------------------------------------------------
+# STRIPE WEBHOOK EVENTS
+# ----------------------------------------------------------------
+class StripeEvent(Base):
+    """Webhook events already handled. Stripe can deliver an event more than
+    once; recording it in the same transaction makes handling idempotent."""
+    __tablename__ = "stripe_events"
+
+    id: Mapped[str] = mapped_column(primary_key=True)
+    type: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
 
 # ----------------------------------------------------------------
@@ -438,4 +744,129 @@ class Rating(Base):
     role: Mapped[RatingRole] = mapped_column(TextEnum(RatingRole))
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+# ----------------------------------------------------------------
+# ORDER ISSUES
+# ----------------------------------------------------------------
+class OrderIssue(Base):
+    """A buyer's problem with an order. The seller can refund it; otherwise
+    either side escalates it and a moderator decides."""
+    __tablename__ = "order_issues"
+    __table_args__ = (
+        enum_check("reason", IssueReason),
+        enum_check("status", IssueStatus),
+        enum_check("resolution", IssueResolution),
+        # At most one unresolved issue per order.
+        Index("uq_order_issues_unresolved", "order_id", unique=True, postgresql_where=text("status <> 'resolved'")),
+        Index("idx_order_issues_status", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orders.id"))
+    # Copied from the order, for listing a party's issues without a join.
+    buyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    seller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    reason: Mapped[IssueReason] = mapped_column(TextEnum(IssueReason))
+    status: Mapped[IssueStatus] = mapped_column(
+        TextEnum(IssueStatus), default=IssueStatus.open, server_default=text("'open'")
+    )
+    resolution: Mapped[IssueResolution | None] = mapped_column(TextEnum(IssueResolution))
+    refund_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    escalated_at: Mapped[datetime | None]
+    resolved_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
+
+    messages: Mapped[list[IssueMessage]] = relationship(lazy="raise", passive_deletes=True,
+                                                        order_by="IssueMessage.created_at, IssueMessage.id")
+
+
+class IssueMessage(Base):
+    __tablename__ = "issue_messages"
+    __table_args__ = (Index("idx_issue_messages_issue", "issue_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    issue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("order_issues.id", ondelete="CASCADE"))
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+# ----------------------------------------------------------------
+# REPORTS AND MODERATION
+# ----------------------------------------------------------------
+class Report(Base):
+    """A user flagging a listing, user or rating for moderators."""
+    __tablename__ = "reports"
+    __table_args__ = (
+        enum_check("target_type", ReportTarget),
+        enum_check("reason", ReportReason),
+        enum_check("status", ReportStatus),
+        # One open report per reporter and target.
+        Index("uq_reports_open", "reporter_id", "target_type", "target_id", unique=True,
+              postgresql_where=text("status = 'open'")),
+        Index("idx_reports_status", "status", "created_at"),
+        Index("idx_reports_target", "target_type", "target_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reporter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    target_type: Mapped[ReportTarget] = mapped_column(TextEnum(ReportTarget))
+    # A listings, users or ratings id, by target_type.
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    reason: Mapped[ReportReason] = mapped_column(TextEnum(ReportReason))
+    details: Mapped[str | None] = mapped_column()
+    status: Mapped[ReportStatus] = mapped_column(
+        TextEnum(ReportStatus), default=ReportStatus.open, server_default=text("'open'")
+    )
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    resolution_note: Mapped[str | None] = mapped_column()
+    resolved_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+class ModerationAction(Base):
+    """What moderators did, for the record."""
+    __tablename__ = "moderation_actions"
+    __table_args__ = (
+        enum_check("action", ModerationActionType),
+        Index("idx_moderation_actions_target", "target_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    admin_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    action: Mapped[ModerationActionType] = mapped_column(TextEnum(ModerationActionType))
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    # e.g. {"account_status": "suspended"} or {"refund_cents": 500}.
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    note: Mapped[str | None] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+# ----------------------------------------------------------------
+# EMAILS
+# ----------------------------------------------------------------
+class Email(Base):
+    """An email to a user, written in the same transaction as what it's
+    about (an outbox), then sent by services/email/sender.py. The address is
+    looked up when sending, so it follows changes in Supabase."""
+    __tablename__ = "emails"
+    __table_args__ = (
+        enum_check("status", EmailStatus),
+        Index("idx_emails_pending", "created_at", postgresql_where=text("status = 'pending'")),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # A template in services/email/templates.py, and the values it fills in.
+    template: Mapped[str] = mapped_column(nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    status: Mapped[EmailStatus] = mapped_column(
+        TextEnum(EmailStatus), default=EmailStatus.pending, server_default=text("'pending'")
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    last_error: Mapped[str | None] = mapped_column()
+    sent_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))

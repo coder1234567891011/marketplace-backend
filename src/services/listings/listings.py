@@ -27,8 +27,8 @@ from utils.pagination import SortKey, keyset_paginate, paginate
 StorefrontSort = Literal["newest", "price_asc", "price_desc"]
 
 # Which status changes are allowed. Sellers only ever remove listings; the
-# others are made by checkout (Phase 4): reserving a listing for a buyer
-# (pending_sale), completing (sold) or releasing it (back to active).
+# others are made by checkout: pending_sale once every copy is in a buyer's
+# checkout, then sold when paid, or back to active if the checkout expires.
 TRANSITIONS: dict[ListingStatus, set[ListingStatus]] = {
     ListingStatus.active: {ListingStatus.pending_sale, ListingStatus.removed},
     ListingStatus.pending_sale: {ListingStatus.active, ListingStatus.sold},
@@ -47,10 +47,15 @@ def _with_relations():  # type: ignore[no-untyped-def]
     return (selectinload(Listing.seller), selectinload(Listing.card))
 
 
+def for_sale_conditions():  # type: ignore[no-untyped-def]
+    """Active listings from sellers in good standing who can be paid. Needs
+    Listing joined to User."""
+    return (Listing.status == ListingStatus.active, User.account_status == AccountStatus.active,
+            User.stripe_connect_onboarded.is_(True))
+
+
 def _for_sale(stmt: Select[tuple[Listing]]) -> Select[tuple[Listing]]:
-    """Only active listings from sellers in good standing."""
-    return (stmt.join(User, User.id == Listing.seller_id)
-            .where(Listing.status == ListingStatus.active, User.account_status == AccountStatus.active))
+    return stmt.join(User, User.id == Listing.seller_id).where(*for_sale_conditions())
 
 
 async def get_user_listings(
@@ -95,8 +100,7 @@ async def get_card_listing_groups(session: AsyncSession, card_id: uuid.UUID) -> 
         select(Listing.condition, Listing.finish, func.count(), func.sum(Listing.quantity_available),
                func.min(Listing.price_cents))
         .join(User, User.id == Listing.seller_id)
-        .where(Listing.card_id == card_id, Listing.status == ListingStatus.active,
-               User.account_status == AccountStatus.active)
+        .where(Listing.card_id == card_id, *for_sale_conditions())
         .group_by(Listing.condition, Listing.finish)
         .order_by(func.min(Listing.price_cents), Listing.condition, Listing.finish)
     )
@@ -180,5 +184,7 @@ async def remove_listing(session: AsyncSession, current: CurrentUser, listing_id
         return
     if listing.status != ListingStatus.active:
         raise Conflict(f"Listing is {listing.status.value} and can't be removed")
+    if listing.quantity_reserved:
+        raise Conflict("Some copies are in a buyer's checkout; try again once it's paid or expires")
     change_status(listing, ListingStatus.removed)
     await session.flush()

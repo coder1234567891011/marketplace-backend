@@ -2,14 +2,15 @@
 # One-time Google Cloud setup for the Cloud Run deployment.
 #
 # Usage (from the repo root, with gcloud installed and logged in):
-#   set -a; source src/.env; set +a        # provides DATABASE_URL and SENTRY_DSN
+#   set -a; source src/.env; set +a        # provides DATABASE_URL, SENTRY_DSN, the Stripe keys and the storage key
 #   GCP_PROJECT=my-project ./deploy/cloudrun-setup.sh
 #
 # Creates (or updates):
 #   * the Artifact Registry repository for API images, with a cleanup policy
 #   * the API's own runtime service account, which can read only its secrets
 #     (instead of the default compute account, which has Editor on the project)
-#   * the database-url and sentry-dsn secrets
+#   * the database-url, sentry-dsn, stripe-secret-key, stripe-webhook-secret,
+#     storage-secret-access-key and resend-api-key secrets
 #
 # Safe to re-run: existing secrets get a new version instead of failing.
 set -euo pipefail
@@ -68,6 +69,23 @@ put_secret database-url "$DATABASE_URL"
 # Sentry is optional: without the secret, the deploy script leaves it disabled.
 if [ -n "${SENTRY_DSN:-}" ]; then
   put_secret sentry-dsn "$SENTRY_DSN"
+fi
+# Payments are off (503) until these exist. The webhook secret belongs to the
+# dashboard endpoint for the deployed API, not the one `stripe listen` prints.
+if [ -n "${STRIPE_SECRET_KEY:-}" ]; then
+  put_secret stripe-secret-key "$STRIPE_SECRET_KEY"
+fi
+if [ -n "${STRIPE_WEBHOOK_SECRET_PROD:-}" ]; then
+  put_secret stripe-webhook-secret "$STRIPE_WEBHOOK_SECRET_PROD"
+fi
+# Scan photo uploads are off (503) until this exists; the rest of the bucket
+# settings are in cloudrun.env.yaml.
+if [ -n "${STORAGE_SECRET_ACCESS_KEY:-}" ]; then
+  put_secret storage-secret-access-key "$STORAGE_SECRET_ACCESS_KEY"
+fi
+# Emails are recorded as skipped until this exists; EMAIL_FROM is in cloudrun.env.yaml.
+if [ -n "${RESEND_API_KEY:-}" ]; then
+  put_secret resend-api-key "$RESEND_API_KEY"
 fi
 
 echo "Done. Next: GCP_PROJECT=$GCP_PROJECT ./deploy/github-deploy-setup.sh (deploys from GitHub),"

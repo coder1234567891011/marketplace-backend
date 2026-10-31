@@ -100,5 +100,15 @@ async def get_active_user(
 
 
 AuthUser = Annotated[CurrentUser, Depends(get_active_user)]
+
+
+async def get_admin_user(current: AuthUser, session: SessionDep) -> CurrentUser:
+    """An active user who is a moderator (users.is_admin)."""
+    if not await session.scalar(select(User.is_admin).where(User.id == current.id)):
+        raise Forbidden("Only moderators can do this", code="not_moderator")
+    return current
+
+
+AdminUser = Annotated[CurrentUser, Depends(get_admin_user)]
 OptionalUser = Annotated[CurrentUser | None, Depends(get_optional_user)]
 

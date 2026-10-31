@@ -1,13 +1,19 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Query
 
+from models.database import CardCondition, CardFinish
 from models.model import Page
-from models.object_models.cards import CardDetail, CardName
+from models.object_models.cards import CardDetail, CardName, CardWithPrices
+from models.object_models.prices import MarketPriceRead, PricePoint, SaleRead, SuggestedPrice
 from services.cards import cards
 from services.persistence.database import SessionDep
+from services.prices import prices
 from utils.pagination import CursorParam, LimitParam
+
+LanguageParam = Annotated[str | None, Query(max_length=5, description="Language code, e.g. en, ja")]
 
 router = APIRouter(
     prefix="/cards",
@@ -56,5 +62,38 @@ async def printings(
 
 
 @router.get("/{card_id}")
-async def read_card(card_id: uuid.UUID, session: SessionDep) -> CardDetail:
-    return CardDetail.model_validate(await cards.get_card(session, card_id))
+async def read_card(card_id: uuid.UUID, session: SessionDep) -> CardWithPrices:
+    """One printing, with its marketplace prices and Scryfall's reference prices."""
+    card = CardWithPrices.model_validate(await cards.get_card(session, card_id))
+    card.market_prices = [MarketPriceRead.model_validate(m) for m in await prices.market_prices(session, card_id)]
+    return card
+
+
+@router.get("/{card_id}/sales")
+async def recent_sales(
+    card_id: uuid.UUID, session: SessionDep,
+    finish: CardFinish | None = None, language: LanguageParam = None, condition: CardCondition | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> list[SaleRead]:
+    """Recent sales on the marketplace, newest first."""
+    return await prices.recent_sales(session, card_id, limit, finish, language, condition)
+
+
+@router.get("/{card_id}/price-history")
+async def price_history(
+    card_id: uuid.UUID, session: SessionDep, finish: CardFinish = CardFinish.nonfoil,
+    language: Annotated[str, Query(max_length=5)] = "en", days: Annotated[int, Query(ge=7, le=730)] = 90,
+) -> list[PricePoint]:
+    """NM market price changes over the last days. Each point holds until the
+    next; the first is the price when the period began."""
+    points = await prices.price_history(session, card_id, finish, language, days, datetime.now(timezone.utc).date())
+    return [PricePoint.model_validate(p) for p in points]
+
+
+@router.get("/{card_id}/suggested-price")
+async def suggested_price(
+    card_id: uuid.UUID, session: SessionDep, condition: CardCondition = CardCondition.NM,
+    finish: CardFinish = CardFinish.nonfoil, language: Annotated[str, Query(max_length=5)] = "en",
+) -> SuggestedPrice:
+    """A starting price for a listing of this card."""
+    return await prices.suggested_price(session, card_id, condition, finish, language)

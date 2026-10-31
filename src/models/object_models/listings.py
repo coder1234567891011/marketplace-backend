@@ -42,6 +42,8 @@ class ListingRead(_ORMBase):
     finish: CardFinish
     language: str
     quantity_available: int
+    # Copies in buyers' open checkouts.
+    quantity_reserved: int
     price_cents: int
     currency: str
     status: ListingStatus

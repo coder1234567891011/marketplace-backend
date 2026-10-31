@@ -1,0 +1,6851 @@
+openapi: 3.1.0
+info:
+  title: MTG Marketplace API
+  description: 'Buy, sell and collect Magic: The Gathering cards. Endpoints live under /v1; authenticate with a Supabase access
+    token as a bearer token.'
+  version: 1.0.0
+paths:
+  /v1/users/me:
+    get:
+      tags:
+      - users
+      summary: Read Me
+      operationId: read_me_v1_users_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - users
+      summary: Create Me
+      operationId: create_me_v1_users_me_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    patch:
+      tags:
+      - users
+      summary: Update Me
+      operationId: update_me_v1_users_me_patch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - users
+      summary: Delete Me
+      operationId: delete_me_v1_users_me_delete
+      responses:
+        '204':
+          description: Successful Response
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/users/{user_id}:
+    get:
+      tags:
+      - users
+      summary: Read User
+      operationId: read_user_v1_users__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/addresses:
+    get:
+      tags:
+      - addresses
+      summary: List My Addresses
+      operationId: list_my_addresses_v1_addresses_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AddressRead'
+                title: Response List My Addresses V1 Addresses Get
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - addresses
+      summary: Add Address
+      operationId: add_address_v1_addresses_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/addresses/{address_id}:
+    get:
+      tags:
+      - addresses
+      summary: Read Address
+      operationId: read_address_v1_addresses__address_id__get
+      parameters:
+      - name: address_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Address Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - addresses
+      summary: Replace Address
+      operationId: replace_address_v1_addresses__address_id__put
+      parameters:
+      - name: address_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Address Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - addresses
+      summary: Remove Address
+      operationId: remove_address_v1_addresses__address_id__delete
+      parameters:
+      - name: address_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Address Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/cards/autocomplete:
+    get:
+      tags:
+      - cards
+      summary: Autocomplete
+      description: 'Card names for a search box: substring and typo-tolerant, one per card.'
+      operationId: autocomplete_v1_cards_autocomplete_get
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 100
+          title: Q
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 20
+          minimum: 1
+          default: 10
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardName'
+                title: Response Autocomplete V1 Cards Autocomplete Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/cards/search:
+    get:
+      tags:
+      - cards
+      summary: Search
+      description: Printings matching every given filter, sorted by name.
+      operationId: search_v1_cards_search_get
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          description: Part of the card name
+          title: Q
+        description: Part of the card name
+      - name: set
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 10
+          - type: 'null'
+          description: Set code, e.g. m10
+          title: Set
+        description: Set code, e.g. m10
+      - name: rarity
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          description: common, uncommon, rare, mythic, …
+          title: Rarity
+        description: common, uncommon, rare, mythic, …
+      - name: type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          description: Part of the type line, e.g. Creature
+          title: Type
+        description: Part of the type line, e.g. Creature
+      - name: colors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^[WUBRGwubrg]{1,5}$
+          - type: 'null'
+          description: Color identity includes all of these, e.g. UR
+          title: Colors
+        description: Color identity includes all of these, e.g. UR
+      - name: finish
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - nonfoil
+            - foil
+            - etched
+            type: string
+          - type: 'null'
+          title: Finish
+      - name: lang
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 5
+          - type: 'null'
+          description: Language code, e.g. en, ja
+          title: Lang
+        description: Language code, e.g. en, ja
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_CardDetail_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/cards/oracle/{oracle_id}/printings:
+    get:
+      tags:
+      - cards
+      summary: Printings
+      description: Every printing of one card (all sets and languages), newest first.
+      operationId: printings_v1_cards_oracle__oracle_id__printings_get
+      parameters:
+      - name: oracle_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Oracle Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_CardDetail_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/cards/{card_id}:
+    get:
+      tags:
+      - cards
+      summary: Read Card
+      description: One printing, with its marketplace prices and Scryfall's reference prices.
+      operationId: read_card_v1_cards__card_id__get
+      parameters:
+      - name: card_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Card Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardWithPrices'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/cards/{card_id}/sales:
+    get:
+      tags:
+      - cards
+      summary: Recent Sales
+      description: Recent sales on the marketplace, newest first.
+      operationId: recent_sales_v1_cards__card_id__sales_get
+      parameters:
+      - name: card_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Card Id
+      - name: finish
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+          title: Finish
+      - name: language
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 5
+          - type: 'null'
+          description: Language code, e.g. en, ja
+          title: Language
+        description: Language code, e.g. en, ja
+      - name: condition
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+          title: Condition
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaleRead'
+                title: Response Recent Sales V1 Cards  Card Id  Sales Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/cards/{card_id}/price-history:
+    get:
+      tags:
+      - cards
+      summary: Price History
+      description: 'NM market price changes over the last days. Each point holds until the
+
+        next; the first is the price when the period began.'
+      operationId: price_history_v1_cards__card_id__price_history_get
+      parameters:
+      - name: card_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Card Id
+      - name: finish
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/CardFinish'
+          default: nonfoil
+      - name: language
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 5
+          default: en
+          title: Language
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 730
+          minimum: 7
+          default: 90
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PricePoint'
+                title: Response Price History V1 Cards  Card Id  Price History Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/cards/{card_id}/suggested-price:
+    get:
+      tags:
+      - cards
+      summary: Suggested Price
+      description: A starting price for a listing of this card.
+      operationId: suggested_price_v1_cards__card_id__suggested_price_get
+      parameters:
+      - name: card_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Card Id
+      - name: condition
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/CardCondition'
+          default: NM
+      - name: finish
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/CardFinish'
+          default: nonfoil
+      - name: language
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 5
+          default: en
+          title: Language
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestedPrice'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/collections/user/{user_id}:
+    get:
+      tags:
+      - collections
+      summary: List User Collections
+      operationId: list_user_collections_v1_collections_user__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectionRead'
+                title: Response List User Collections V1 Collections User  User Id  Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+      - {}
+  /v1/collections/{collection_id}:
+    get:
+      tags:
+      - collections
+      summary: Read Collection
+      operationId: read_collection_v1_collections__collection_id__get
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Collection Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+      - {}
+    patch:
+      tags:
+      - collections
+      summary: Edit Collection
+      operationId: edit_collection_v1_collections__collection_id__patch
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Collection Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - collections
+      summary: Remove Collection
+      operationId: remove_collection_v1_collections__collection_id__delete
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Collection Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/collections:
+    post:
+      tags:
+      - collections
+      summary: Add Collection
+      operationId: add_collection_v1_collections_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/collections/{collection_id}/items:
+    get:
+      tags:
+      - collections
+      summary: List Collection Items
+      operationId: list_collection_items_v1_collections__collection_id__items_get
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Collection Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_CollectionItemRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+      - {}
+    post:
+      tags:
+      - collections
+      summary: Add Collection Items
+      operationId: add_collection_items_v1_collections__collection_id__items_post
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Collection Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CollectionItemCreate'
+              minItems: 1
+              maxItems: 500
+              title: Requests
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectionItemRead'
+                title: Response Add Collection Items V1 Collections  Collection Id  Items Post
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/collections/{collection_id}/import:
+    post:
+      tags:
+      - collections
+      summary: Import Items
+      description: 'Add cards from a pasted decklist or CSV export. Lines that can''t be
+
+        matched are listed in `unmatched`; the rest are added (unless dry_run).'
+      operationId: import_items_v1_collections__collection_id__import_post
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Collection Id
+      - name: dry_run
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Match the lines and report, without adding anything
+          default: false
+          title: Dry Run
+        description: Match the lines and report, without adding anything
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionImport'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/collections/items/{item_id}:
+    get:
+      tags:
+      - collections
+      summary: Read Collection Item
+      operationId: read_collection_item_v1_collections_items__item_id__get
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Item Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionItemRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+      - {}
+    patch:
+      tags:
+      - collections
+      summary: Edit Collection Item
+      operationId: edit_collection_item_v1_collections_items__item_id__patch
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Item Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionItemRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - collections
+      summary: Remove Collection Item
+      operationId: remove_collection_item_v1_collections_items__item_id__delete
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Item Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/listings/user/{user_id}:
+    get:
+      tags:
+      - listings
+      summary: List User Listings
+      description: A seller's storefront. The seller also sees their sold and removed listings.
+      operationId: list_user_listings_v1_listings_user__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          description: Part of the card name
+          title: Q
+        description: Part of the card name
+      - name: sort
+        in: query
+        required: false
+        schema:
+          enum:
+          - newest
+          - price_asc
+          - price_desc
+          type: string
+          default: newest
+          title: Sort
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ListingRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+      - {}
+  /v1/listings/card/{card_id}:
+    get:
+      tags:
+      - listings
+      summary: List Card Listings
+      description: Listings of one printing for sale, cheapest first.
+      operationId: list_card_listings_v1_listings_card__card_id__get
+      parameters:
+      - name: card_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Card Id
+      - name: condition
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+          title: Condition
+      - name: finish
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+          title: Finish
+      - name: language
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^[a-z]{2,3}$
+          - type: 'null'
+          title: Language
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ListingRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/listings/card/{card_id}/summary:
+    get:
+      tags:
+      - listings
+      summary: Card Listing Summary
+      description: How many are for sale and the lowest price, per condition and finish.
+      operationId: card_listing_summary_v1_listings_card__card_id__summary_get
+      parameters:
+      - name: card_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Card Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListingGroup'
+                title: Response Card Listing Summary V1 Listings Card  Card Id  Summary Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/listings/{listing_id}:
+    get:
+      tags:
+      - listings
+      summary: Read Listing
+      operationId: read_listing_v1_listings__listing_id__get
+      parameters:
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Listing Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags:
+      - listings
+      summary: Edit Listing
+      operationId: edit_listing_v1_listings__listing_id__patch
+      parameters:
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Listing Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - listings
+      summary: Delete Listing
+      operationId: delete_listing_v1_listings__listing_id__delete
+      parameters:
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Listing Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/listings:
+    post:
+      tags:
+      - listings
+      summary: Add Listing
+      operationId: add_listing_v1_listings_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/orders:
+    get:
+      tags:
+      - orders
+      summary: List My Orders
+      description: Orders the caller bought, or (role=seller) paid orders they sold.
+      operationId: list_my_orders_v1_orders_get
+      parameters:
+      - name: role
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/OrderRole'
+          default: buyer
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_OrderRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/orders/{order_id}:
+    get:
+      tags:
+      - orders
+      summary: Read Order
+      operationId: read_order_v1_orders__order_id__get
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/orders/{order_id}/ship:
+    post:
+      tags:
+      - orders
+      summary: Mark Shipped
+      description: 'Seller: the order is on its way. Pays the seller out, unless they were paid when the buyer paid.'
+      operationId: mark_shipped_v1_orders__order_id__ship_post
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderShip'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/orders/{order_id}/received:
+    post:
+      tags:
+      - orders
+      summary: Mark Received
+      description: 'Buyer: the cards arrived. Both sides can then rate each other.'
+      operationId: mark_received_v1_orders__order_id__received_post
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/orders/{order_id}/refund:
+    post:
+      tags:
+      - orders
+      summary: Refund
+      description: 'Seller: cancel an unshipped order and refund the buyer in full.'
+      operationId: refund_v1_orders__order_id__refund_post
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/ratings/user/{user_id}:
+    get:
+      tags:
+      - ratings
+      summary: List User Ratings
+      operationId: list_user_ratings_v1_ratings_user__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_RatingRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/ratings/{rating_id}:
+    get:
+      tags:
+      - ratings
+      summary: Read Rating
+      operationId: read_rating_v1_ratings__rating_id__get
+      parameters:
+      - name: rating_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Rating Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RatingRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/ratings:
+    post:
+      tags:
+      - ratings
+      summary: Add Rating
+      operationId: add_rating_v1_ratings_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatingCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RatingRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/shipping-rates/user/{user_id}:
+    get:
+      tags:
+      - shipping
+      summary: List Shipping Rates
+      description: A seller's flat shipping options, cheapest first.
+      operationId: list_shipping_rates_v1_shipping_rates_user__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShippingRateRead'
+                title: Response List Shipping Rates V1 Shipping Rates User  User Id  Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/shipping-rates:
+    post:
+      tags:
+      - shipping
+      summary: Add Shipping Rate
+      operationId: add_shipping_rate_v1_shipping_rates_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShippingRateCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShippingRateRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/shipping-rates/{rate_id}:
+    patch:
+      tags:
+      - shipping
+      summary: Edit Shipping Rate
+      operationId: edit_shipping_rate_v1_shipping_rates__rate_id__patch
+      parameters:
+      - name: rate_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Rate Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShippingRateUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShippingRateRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - shipping
+      summary: Remove Shipping Rate
+      operationId: remove_shipping_rate_v1_shipping_rates__rate_id__delete
+      parameters:
+      - name: rate_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Rate Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/sellers/me:
+    get:
+      tags:
+      - sellers
+      summary: Read Seller Status
+      description: Whether the caller has set up payouts and their listings can be bought.
+      operationId: read_seller_status_v1_sellers_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerStatus'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/sellers/me/onboarding:
+    post:
+      tags:
+      - sellers
+      summary: Onboarding Link
+      description: 'Stripe''s payout setup forms. Redirect to the url straight away: it expires within minutes.'
+      operationId: onboarding_link_v1_sellers_me_onboarding_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StripeLink'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/sellers/me/dashboard:
+    post:
+      tags:
+      - sellers
+      summary: Stripe Dashboard Link
+      description: The seller's Stripe dashboard, for payouts and bank details.
+      operationId: stripe_dashboard_link_v1_sellers_me_dashboard_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StripeLink'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/cart:
+    get:
+      tags:
+      - cart
+      summary: Read Cart
+      description: The cart grouped by seller, with any lines that can't be bought as they are.
+      operationId: read_cart_v1_cart_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartRead'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - cart
+      summary: Empty Cart
+      operationId: empty_cart_v1_cart_delete
+      responses:
+        '204':
+          description: Successful Response
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/cart/items/{listing_id}:
+    put:
+      tags:
+      - cart
+      summary: Put Cart Item
+      description: Add a listing to the cart, or set how many copies of it.
+      operationId: put_cart_item_v1_cart_items__listing_id__put
+      parameters:
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Listing Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemSet'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - cart
+      summary: Delete Cart Item
+      operationId: delete_cart_item_v1_cart_items__listing_id__delete
+      parameters:
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Listing Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/checkout:
+    post:
+      tags:
+      - checkout
+      summary: Create Checkout
+      description: 'Hold the cart''s copies and open a Stripe payment page (url) for them,
+
+        one order per seller. The hold ends at expires_at if unpaid.'
+      operationId: create_checkout_v1_checkout_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/checkout/{checkout_id}:
+    get:
+      tags:
+      - checkout
+      summary: Read Checkout
+      description: 'Poll this after Stripe sends the buyer back: status becomes paid once Stripe confirms.'
+      operationId: read_checkout_v1_checkout__checkout_id__get
+      parameters:
+      - name: checkout_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Checkout Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/checkout/{checkout_id}/cancel:
+    post:
+      tags:
+      - checkout
+      summary: Abandon Checkout
+      description: Give up before paying; the copies go back on sale straight away.
+      operationId: abandon_checkout_v1_checkout__checkout_id__cancel_post
+      parameters:
+      - name: checkout_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Checkout Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/scans:
+    post:
+      tags:
+      - scans
+      summary: Start Scan
+      description: 'Start scanning a card. With photo, returns a link to upload it to;
+
+        with the text read from it, also returns the matching cards.'
+      operationId: start_scan_v1_scans_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanCreated'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - scans
+      summary: List Scans
+      description: The caller's scans, newest first.
+      operationId: list_scans_v1_scans_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ScanStatus'
+          - type: 'null'
+          title: Status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ScanRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/scans/{scan_id}:
+    get:
+      tags:
+      - scans
+      summary: Read Scan
+      operationId: read_scan_v1_scans__scan_id__get
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - scans
+      summary: Delete
+      operationId: delete_v1_scans__scan_id__delete
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/scans/{scan_id}/recognize:
+    post:
+      tags:
+      - scans
+      summary: Recognize
+      description: Match the text read from the card against the catalog.
+      operationId: recognize_v1_scans__scan_id__recognize_post
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanText'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/scans/{scan_id}/confirm:
+    post:
+      tags:
+      - scans
+      summary: Confirm
+      description: Add the scanned card to a collection.
+      operationId: confirm_v1_scans__scan_id__confirm_post
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanConfirm'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/wants:
+    get:
+      tags:
+      - wants
+      summary: List Wants Lists
+      description: The caller's wants lists, newest first.
+      operationId: list_wants_lists_v1_wants_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WantsListRead'
+                title: Response List Wants Lists V1 Wants Get
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - wants
+      summary: Create Wants List
+      operationId: create_wants_list_v1_wants_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WantsListCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WantsListRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/wants/{list_id}:
+    patch:
+      tags:
+      - wants
+      summary: Rename Wants List
+      operationId: rename_wants_list_v1_wants__list_id__patch
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: List Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WantsListCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WantsListRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - wants
+      summary: Delete Wants List
+      operationId: delete_wants_list_v1_wants__list_id__delete
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: List Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/wants/{list_id}/items:
+    get:
+      tags:
+      - wants
+      summary: List Items
+      description: Each item with the copies the caller owns and what's for sale.
+      operationId: list_items_v1_wants__list_id__items_get
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: List Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WantItemStatus'
+                title: Response List Items V1 Wants  List Id  Items Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - wants
+      summary: Add Item
+      operationId: add_item_v1_wants__list_id__items_post
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: List Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WantItemCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WantItemRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/wants/{list_id}/import:
+    post:
+      tags:
+      - wants
+      summary: Import Decklist
+      description: Add the cards in a decklist.
+      operationId: import_decklist_v1_wants__list_id__import_post
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: List Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WantsImport'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WantsImportResult'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/wants/{list_id}/alerts:
+    get:
+      tags:
+      - wants
+      summary: Price Alerts
+      description: Listings at or under the target price (max_price_cents) of an item.
+      operationId: price_alerts_v1_wants__list_id__alerts_get
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: List Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListingRead'
+                title: Response Price Alerts V1 Wants  List Id  Alerts Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/wants/{list_id}/optimize:
+    post:
+      tags:
+      - wants
+      summary: Optimize
+      description: The cheapest way found to buy the list, cards plus shipping, optionally added to the cart.
+      operationId: optimize_v1_wants__list_id__optimize_post
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: List Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizeRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizeResult'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/wants/items/{item_id}:
+    patch:
+      tags:
+      - wants
+      summary: Update Item
+      operationId: update_item_v1_wants_items__item_id__patch
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Item Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WantItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WantItemRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - wants
+      summary: Delete Item
+      operationId: delete_item_v1_wants_items__item_id__delete
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Item Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/orders/{order_id}/issues:
+    post:
+      tags:
+      - issues
+      summary: Open Issue
+      description: 'Buyer: report a problem with a paid order. The seller is emailed.'
+      operationId: open_issue_v1_orders__order_id__issues_post
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - issues
+      summary: List Order Issues
+      description: An order's issues, newest first (buyer or seller).
+      operationId: list_order_issues_v1_orders__order_id__issues_get
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IssueRead'
+                title: Response List Order Issues V1 Orders  Order Id  Issues Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues:
+    get:
+      tags:
+      - issues
+      summary: List My Issues
+      description: Issues the caller opened as a buyer, or (role=seller) that were opened on their sales.
+      operationId: list_my_issues_v1_issues_get
+      parameters:
+      - name: role
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/IssueRole'
+          default: buyer
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/IssueStatus'
+          - type: 'null'
+          title: Status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_IssueRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}:
+    get:
+      tags:
+      - issues
+      summary: Read Issue
+      operationId: read_issue_v1_issues__issue_id__get
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/messages:
+    post:
+      tags:
+      - issues
+      summary: Add Message
+      operationId: add_message_v1_issues__issue_id__messages_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueMessageCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/refund:
+    post:
+      tags:
+      - issues
+      summary: Refund Issue
+      description: 'Seller: refund all (default) or part of the order, resolving the issue.'
+      operationId: refund_issue_v1_issues__issue_id__refund_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueRefund'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/escalate:
+    post:
+      tags:
+      - issues
+      summary: Escalate Issue
+      description: 'Ask a moderator to decide: the seller any time, the buyer once escalate_after has passed.'
+      operationId: escalate_issue_v1_issues__issue_id__escalate_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/withdraw:
+    post:
+      tags:
+      - issues
+      summary: Withdraw Issue
+      description: 'Buyer: close the issue without a refund.'
+      operationId: withdraw_issue_v1_issues__issue_id__withdraw_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/reports:
+    post:
+      tags:
+      - reports
+      summary: Report
+      description: Flag a listing, user or rating for the moderators.
+      operationId: report_v1_reports_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - reports
+      summary: List My Reports
+      operationId: list_my_reports_v1_reports_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ReportRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/reports:
+    get:
+      tags:
+      - admin
+      summary: List Reports
+      description: Reports, newest first; open ones by default.
+      operationId: list_reports_v1_admin_reports_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReportStatus'
+          - type: 'null'
+          default: open
+          title: Status
+      - name: target_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReportTarget'
+          - type: 'null'
+          title: Target Type
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ReportAdminRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/reports/{report_id}/resolve:
+    post:
+      tags:
+      - admin
+      summary: Resolve Report
+      description: Close a report. Acting on its target (below) closes its reports as actioned anyway.
+      operationId: resolve_report_v1_admin_reports__report_id__resolve_post
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Report Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportResolve'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportAdminRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/users/{user_id}/status:
+    put:
+      tags:
+      - admin
+      summary: Set Account Status
+      description: Suspend (read-only), ban, or reinstate (active) an account. The user is emailed.
+      operationId: set_account_status_v1_admin_users__user_id__status_put
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/listings/{listing_id}/remove:
+    post:
+      tags:
+      - admin
+      summary: Remove Listing
+      operationId: remove_listing_v1_admin_listings__listing_id__remove_post
+      parameters:
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Listing Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationNote'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/ratings/{rating_id}/remove:
+    post:
+      tags:
+      - admin
+      summary: Remove Rating
+      description: Delete a rating (e.g. an abusive comment); the user's average is recalculated.
+      operationId: remove_rating_v1_admin_ratings__rating_id__remove_post
+      parameters:
+      - name: rating_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Rating Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationNote'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues:
+    get:
+      tags:
+      - admin
+      summary: List Issues
+      description: Order issues, newest first; escalated ones by default.
+      operationId: list_issues_v1_admin_issues_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/IssueStatus'
+          - type: 'null'
+          default: escalated
+          title: Status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_IssueRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues/{issue_id}:
+    get:
+      tags:
+      - admin
+      summary: Read Issue
+      operationId: read_issue_v1_admin_issues__issue_id__get
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues/{issue_id}/messages:
+    post:
+      tags:
+      - admin
+      summary: Message Issue
+      description: Ask the buyer or seller something; both are emailed.
+      operationId: message_issue_v1_admin_issues__issue_id__messages_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueMessageCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues/{issue_id}/resolve:
+    post:
+      tags:
+      - admin
+      summary: Decide Issue
+      description: 'Decide an issue: refund refund_cents to the buyer (0 for none).'
+      operationId: decide_issue_v1_admin_issues__issue_id__resolve_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueDecision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/actions:
+    get:
+      tags:
+      - admin
+      summary: List Actions
+      description: The moderation log, newest first, optionally for one user, listing, rating or issue.
+      operationId: list_actions_v1_admin_actions_get
+      parameters:
+      - name: target_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Target Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ModerationActionRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /health:
+    get:
+      tags:
+      - health
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    AccountStatus:
+      type: string
+      enum:
+      - active
+      - suspended
+      - banned
+      title: AccountStatus
+    AccountStatusUpdate:
+      properties:
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+        account_status:
+          $ref: '#/components/schemas/AccountStatus'
+      type: object
+      required:
+      - account_status
+      title: AccountStatusUpdate
+    AddressCreate:
+      properties:
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        recipient_name:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: Recipient Name
+        line1:
+          type: string
+          title: Line1
+        line2:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Line2
+        city:
+          type: string
+          title: City
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        postal_code:
+          type: string
+          title: Postal Code
+        country:
+          type: string
+          title: Country
+        is_default:
+          type: boolean
+          title: Is Default
+          default: false
+      type: object
+      required:
+      - line1
+      - city
+      - postal_code
+      - country
+      title: AddressCreate
+    AddressRead:
+      properties:
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        recipient_name:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: Recipient Name
+        line1:
+          type: string
+          title: Line1
+        line2:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Line2
+        city:
+          type: string
+          title: City
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        postal_code:
+          type: string
+          title: Postal Code
+        country:
+          type: string
+          title: Country
+        is_default:
+          type: boolean
+          title: Is Default
+          default: false
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - line1
+      - city
+      - postal_code
+      - country
+      - id
+      - user_id
+      - created_at
+      title: AddressRead
+    CardCondition:
+      type: string
+      enum:
+      - NM
+      - LP
+      - MP
+      - HP
+      - DMG
+      title: CardCondition
+    CardDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        oracle_id:
+          type: string
+          format: uuid
+          title: Oracle Id
+        name:
+          type: string
+          title: Name
+        set_code:
+          type: string
+          title: Set Code
+        set_name:
+          type: string
+          title: Set Name
+        set_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Set Type
+        collector_number:
+          type: string
+          title: Collector Number
+        lang:
+          type: string
+          title: Lang
+        released_at:
+          type: string
+          format: date
+          title: Released At
+        rarity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rarity
+        promo:
+          type: boolean
+          title: Promo
+          default: false
+        layout:
+          type: string
+          title: Layout
+        mana_cost:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mana Cost
+        cmc:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cmc
+        type_line:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type Line
+        oracle_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Oracle Text
+        colors:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Colors
+        color_identity:
+          items:
+            type: string
+          type: array
+          title: Color Identity
+        finishes:
+          items:
+            type: string
+          type: array
+          title: Finishes
+        image_uris:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Uris
+        card_faces:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/CardFace'
+            type: array
+          - type: 'null'
+          title: Card Faces
+        reference_prices:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Reference Prices
+      type: object
+      required:
+      - id
+      - oracle_id
+      - name
+      - set_code
+      - set_name
+      - collector_number
+      - lang
+      - released_at
+      - rarity
+      - layout
+      - mana_cost
+      - cmc
+      - type_line
+      - oracle_text
+      - colors
+      - color_identity
+      - finishes
+      - image_uris
+      - card_faces
+      title: CardDetail
+      description: 'A printing plus Scryfall''s market prices, which are only an outside
+
+        reference: marketplace prices come from sales on this platform.'
+    CardFace:
+      properties:
+        name:
+          type: string
+          title: Name
+        mana_cost:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mana Cost
+        type_line:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type Line
+        oracle_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Oracle Text
+        image_uris:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Uris
+      type: object
+      required:
+      - name
+      title: CardFace
+    CardFinish:
+      type: string
+      enum:
+      - nonfoil
+      - foil
+      - etched
+      title: CardFinish
+    CardName:
+      properties:
+        oracle_id:
+          type: string
+          format: uuid
+          title: Oracle Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - oracle_id
+      - name
+      title: CardName
+      description: 'An autocomplete suggestion: one card, across all its printings.'
+    CardRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        oracle_id:
+          type: string
+          format: uuid
+          title: Oracle Id
+        name:
+          type: string
+          title: Name
+        set_code:
+          type: string
+          title: Set Code
+        set_name:
+          type: string
+          title: Set Name
+        set_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Set Type
+        collector_number:
+          type: string
+          title: Collector Number
+        lang:
+          type: string
+          title: Lang
+        released_at:
+          type: string
+          format: date
+          title: Released At
+        rarity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rarity
+        promo:
+          type: boolean
+          title: Promo
+          default: false
+        layout:
+          type: string
+          title: Layout
+        mana_cost:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mana Cost
+        cmc:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cmc
+        type_line:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type Line
+        oracle_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Oracle Text
+        colors:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Colors
+        color_identity:
+          items:
+            type: string
+          type: array
+          title: Color Identity
+        finishes:
+          items:
+            type: string
+          type: array
+          title: Finishes
+        image_uris:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Uris
+        card_faces:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/CardFace'
+            type: array
+          - type: 'null'
+          title: Card Faces
+      type: object
+      required:
+      - id
+      - oracle_id
+      - name
+      - set_code
+      - set_name
+      - collector_number
+      - lang
+      - released_at
+      - rarity
+      - layout
+      - mana_cost
+      - cmc
+      - type_line
+      - oracle_text
+      - colors
+      - color_identity
+      - finishes
+      - image_uris
+      - card_faces
+      title: CardRead
+      description: One printing of a card. Embedded in listings and collection items.
+    CardWithPrices:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        oracle_id:
+          type: string
+          format: uuid
+          title: Oracle Id
+        name:
+          type: string
+          title: Name
+        set_code:
+          type: string
+          title: Set Code
+        set_name:
+          type: string
+          title: Set Name
+        set_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Set Type
+        collector_number:
+          type: string
+          title: Collector Number
+        lang:
+          type: string
+          title: Lang
+        released_at:
+          type: string
+          format: date
+          title: Released At
+        rarity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rarity
+        promo:
+          type: boolean
+          title: Promo
+          default: false
+        layout:
+          type: string
+          title: Layout
+        mana_cost:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mana Cost
+        cmc:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cmc
+        type_line:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type Line
+        oracle_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Oracle Text
+        colors:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Colors
+        color_identity:
+          items:
+            type: string
+          type: array
+          title: Color Identity
+        finishes:
+          items:
+            type: string
+          type: array
+          title: Finishes
+        image_uris:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Uris
+        card_faces:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/CardFace'
+            type: array
+          - type: 'null'
+          title: Card Faces
+        reference_prices:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Reference Prices
+        market_prices:
+          items:
+            $ref: '#/components/schemas/MarketPriceRead'
+          type: array
+          title: Market Prices
+          default: []
+      type: object
+      required:
+      - id
+      - oracle_id
+      - name
+      - set_code
+      - set_name
+      - collector_number
+      - lang
+      - released_at
+      - rarity
+      - layout
+      - mana_cost
+      - cmc
+      - type_line
+      - oracle_text
+      - colors
+      - color_identity
+      - finishes
+      - image_uris
+      - card_faces
+      title: CardWithPrices
+      description: A printing with its marketplace prices (NM, per finish and language).
+    CartItemRead:
+      properties:
+        listing:
+          $ref: '#/components/schemas/ListingRead'
+        quantity:
+          type: integer
+          title: Quantity
+        problem:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Problem
+      type: object
+      required:
+      - listing
+      - quantity
+      title: CartItemRead
+    CartItemSet:
+      properties:
+        quantity:
+          type: integer
+          maximum: 10000.0
+          minimum: 1.0
+          title: Quantity
+      type: object
+      required:
+      - quantity
+      title: CartItemSet
+    CartRead:
+      properties:
+        sellers:
+          items:
+            $ref: '#/components/schemas/CartSeller'
+          type: array
+          title: Sellers
+        subtotal_cents:
+          type: integer
+          title: Subtotal Cents
+        item_count:
+          type: integer
+          title: Item Count
+        can_check_out:
+          type: boolean
+          title: Can Check Out
+      type: object
+      required:
+      - sellers
+      - subtotal_cents
+      - item_count
+      - can_check_out
+      title: CartRead
+    CartSeller:
+      properties:
+        seller:
+          $ref: '#/components/schemas/UserRead'
+        items:
+          items:
+            $ref: '#/components/schemas/CartItemRead'
+          type: array
+          title: Items
+        subtotal_cents:
+          type: integer
+          title: Subtotal Cents
+        shipping_rates:
+          items:
+            $ref: '#/components/schemas/ShippingRateRead'
+          type: array
+          title: Shipping Rates
+      type: object
+      required:
+      - seller
+      - items
+      - subtotal_cents
+      - shipping_rates
+      title: CartSeller
+      description: The cart's listings from one seller, which become one order.
+    CheckoutCreate:
+      properties:
+        shipping_address_id:
+          type: string
+          format: uuid
+          title: Shipping Address Id
+        shipping_rates:
+          additionalProperties:
+            type: string
+            format: uuid
+          propertyNames:
+            format: uuid
+          type: object
+          title: Shipping Rates
+          default: {}
+      type: object
+      required:
+      - shipping_address_id
+      title: CheckoutCreate
+    CheckoutRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/CheckoutStatus'
+        total_cents:
+          type: integer
+          title: Total Cents
+        currency:
+          type: string
+          title: Currency
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        paid_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Paid At
+        orders:
+          items:
+            $ref: '#/components/schemas/OrderRead'
+          type: array
+          title: Orders
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - status
+      - total_cents
+      - currency
+      - expires_at
+      - paid_at
+      - orders
+      - created_at
+      title: CheckoutRead
+    CheckoutStatus:
+      type: string
+      enum:
+      - open
+      - paid
+      - expired
+      title: CheckoutStatus
+    CollectionCreate:
+      properties:
+        name:
+          type: string
+          title: Name
+          default: My Collection
+        is_public:
+          type: boolean
+          title: Is Public
+          default: false
+      type: object
+      title: CollectionCreate
+    CollectionImport:
+      properties:
+        format:
+          type: string
+          enum:
+          - decklist
+          - csv
+          title: Format
+        text:
+          type: string
+          maxLength: 200000
+          minLength: 1
+          title: Text
+        condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        language:
+          type: string
+          pattern: ^[a-z]{2,3}$
+          title: Language
+          default: en
+      type: object
+      required:
+      - format
+      - text
+      title: CollectionImport
+      description: 'A pasted decklist (Arena, MTGO or plain "4 Lightning Bolt" lines) or a
+
+        CSV export with a header row (Moxfield, ManaBox, Deckbox, …).'
+    CollectionItemCreate:
+      properties:
+        card_id:
+          type: string
+          format: uuid
+          title: Card Id
+        condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+          default: nonfoil
+        language:
+          type: string
+          pattern: ^[a-z]{2,3}$
+          title: Language
+          default: en
+        quantity:
+          type: integer
+          maximum: 10000.0
+          minimum: 1.0
+          title: Quantity
+          default: 1
+        scan_image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Scan Image Url
+      type: object
+      required:
+      - card_id
+      title: CollectionItemCreate
+    CollectionItemRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        collection_id:
+          type: string
+          format: uuid
+          title: Collection Id
+        card:
+          $ref: '#/components/schemas/CardRead'
+        condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+        language:
+          type: string
+          title: Language
+        quantity:
+          type: integer
+          title: Quantity
+        quantity_listed:
+          type: integer
+          title: Quantity Listed
+          default: 0
+        recognition_confidence:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Recognition Confidence
+        recognition_status:
+          $ref: '#/components/schemas/RecognitionStatus'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - collection_id
+      - card
+      - condition
+      - finish
+      - language
+      - quantity
+      - recognition_confidence
+      - recognition_status
+      - created_at
+      title: CollectionItemRead
+    CollectionItemUpdate:
+      properties:
+        condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+        language:
+          anyOf:
+          - type: string
+            pattern: ^[a-z]{2,3}$
+          - type: 'null'
+          title: Language
+        quantity:
+          anyOf:
+          - type: integer
+            maximum: 10000.0
+            minimum: 1.0
+          - type: 'null'
+          title: Quantity
+      type: object
+      title: CollectionItemUpdate
+    CollectionRead:
+      properties:
+        name:
+          type: string
+          title: Name
+          default: My Collection
+        is_public:
+          type: boolean
+          title: Is Public
+          default: false
+        id:
+          type: string
+          format: uuid
+          title: Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - user_id
+      - created_at
+      - updated_at
+      title: CollectionRead
+    CollectionUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        is_public:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Public
+      type: object
+      title: CollectionUpdate
+    ImportProblem:
+      properties:
+        line:
+          type: integer
+          title: Line
+        text:
+          type: string
+          title: Text
+        error:
+          type: string
+          title: Error
+      type: object
+      required:
+      - line
+      - text
+      - error
+      title: ImportProblem
+    ImportResult:
+      properties:
+        dry_run:
+          type: boolean
+          title: Dry Run
+        matched:
+          items:
+            $ref: '#/components/schemas/ImportedLine'
+          type: array
+          title: Matched
+        unmatched:
+          items:
+            $ref: '#/components/schemas/ImportProblem'
+          type: array
+          title: Unmatched
+        items_created:
+          type: integer
+          title: Items Created
+        items_updated:
+          type: integer
+          title: Items Updated
+      type: object
+      required:
+      - dry_run
+      - matched
+      - unmatched
+      - items_created
+      - items_updated
+      title: ImportResult
+    ImportedLine:
+      properties:
+        line:
+          type: integer
+          title: Line
+        text:
+          type: string
+          title: Text
+        card:
+          $ref: '#/components/schemas/CardRead'
+        quantity:
+          type: integer
+          title: Quantity
+        condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+        language:
+          type: string
+          title: Language
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - line
+      - text
+      - card
+      - quantity
+      - condition
+      - finish
+      - language
+      title: ImportedLine
+    IssueCreate:
+      properties:
+        reason:
+          $ref: '#/components/schemas/IssueReason'
+        message:
+          type: string
+          maxLength: 4000
+          minLength: 1
+          title: Message
+      type: object
+      required:
+      - reason
+      - message
+      title: IssueCreate
+    IssueDecision:
+      properties:
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+        refund_cents:
+          type: integer
+          minimum: 0.0
+          title: Refund Cents
+      type: object
+      required:
+      - refund_cents
+      title: IssueDecision
+    IssueDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        order_id:
+          type: string
+          format: uuid
+          title: Order Id
+        buyer_id:
+          type: string
+          format: uuid
+          title: Buyer Id
+        seller_id:
+          type: string
+          format: uuid
+          title: Seller Id
+        reason:
+          $ref: '#/components/schemas/IssueReason'
+        status:
+          $ref: '#/components/schemas/IssueStatus'
+        resolution:
+          anyOf:
+          - $ref: '#/components/schemas/IssueResolution'
+          - type: 'null'
+        refund_cents:
+          type: integer
+          title: Refund Cents
+        escalate_after:
+          type: string
+          format: date-time
+          title: Escalate After
+        escalated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Escalated At
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        messages:
+          items:
+            $ref: '#/components/schemas/IssueMessageRead'
+          type: array
+          title: Messages
+      type: object
+      required:
+      - id
+      - order_id
+      - buyer_id
+      - seller_id
+      - reason
+      - status
+      - resolution
+      - refund_cents
+      - escalate_after
+      - escalated_at
+      - resolved_at
+      - created_at
+      - updated_at
+      - messages
+      title: IssueDetail
+    IssueMessageCreate:
+      properties:
+        body:
+          type: string
+          maxLength: 4000
+          minLength: 1
+          title: Body
+      type: object
+      required:
+      - body
+      title: IssueMessageCreate
+    IssueMessageRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        author_id:
+          type: string
+          format: uuid
+          title: Author Id
+        from_moderator:
+          type: boolean
+          title: From Moderator
+          default: false
+        body:
+          type: string
+          title: Body
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - author_id
+      - body
+      - created_at
+      title: IssueMessageRead
+    IssueRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        order_id:
+          type: string
+          format: uuid
+          title: Order Id
+        buyer_id:
+          type: string
+          format: uuid
+          title: Buyer Id
+        seller_id:
+          type: string
+          format: uuid
+          title: Seller Id
+        reason:
+          $ref: '#/components/schemas/IssueReason'
+        status:
+          $ref: '#/components/schemas/IssueStatus'
+        resolution:
+          anyOf:
+          - $ref: '#/components/schemas/IssueResolution'
+          - type: 'null'
+        refund_cents:
+          type: integer
+          title: Refund Cents
+        escalate_after:
+          type: string
+          format: date-time
+          title: Escalate After
+        escalated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Escalated At
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - order_id
+      - buyer_id
+      - seller_id
+      - reason
+      - status
+      - resolution
+      - refund_cents
+      - escalate_after
+      - escalated_at
+      - resolved_at
+      - created_at
+      - updated_at
+      title: IssueRead
+    IssueReason:
+      type: string
+      enum:
+      - not_received
+      - not_as_described
+      - other
+      title: IssueReason
+    IssueRefund:
+      properties:
+        amount_cents:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Amount Cents
+      type: object
+      title: IssueRefund
+    IssueResolution:
+      type: string
+      enum:
+      - refunded
+      - no_refund
+      - withdrawn
+      title: IssueResolution
+    IssueRole:
+      type: string
+      enum:
+      - buyer
+      - seller
+      title: IssueRole
+    IssueStatus:
+      type: string
+      enum:
+      - open
+      - escalated
+      - resolved
+      title: IssueStatus
+    ListingCreate:
+      properties:
+        card_id:
+          type: string
+          format: uuid
+          title: Card Id
+        collection_item_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Collection Item Id
+        condition:
+          $ref: '#/components/schemas/CardCondition'
+        finish:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+        language:
+          anyOf:
+          - type: string
+            pattern: ^[a-z]{2,3}$
+          - type: 'null'
+          title: Language
+        quantity_available:
+          type: integer
+          maximum: 10000.0
+          minimum: 1.0
+          title: Quantity Available
+          default: 1
+        price_cents:
+          type: integer
+          maximum: 10000000.0
+          exclusiveMinimum: 0.0
+          title: Price Cents
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - card_id
+      - condition
+      - price_cents
+      title: ListingCreate
+    ListingGroup:
+      properties:
+        condition:
+          $ref: '#/components/schemas/CardCondition'
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+        listings:
+          type: integer
+          title: Listings
+        quantity:
+          type: integer
+          title: Quantity
+        lowest_price_cents:
+          type: integer
+          title: Lowest Price Cents
+      type: object
+      required:
+      - condition
+      - finish
+      - listings
+      - quantity
+      - lowest_price_cents
+      title: ListingGroup
+      description: Active listings of one card in one condition and finish.
+    ListingRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        collection_item_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Collection Item Id
+        seller:
+          $ref: '#/components/schemas/UserRead'
+        card:
+          $ref: '#/components/schemas/CardRead'
+        condition:
+          $ref: '#/components/schemas/CardCondition'
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+        language:
+          type: string
+          title: Language
+        quantity_available:
+          type: integer
+          title: Quantity Available
+        quantity_reserved:
+          type: integer
+          title: Quantity Reserved
+        price_cents:
+          type: integer
+          title: Price Cents
+        currency:
+          type: string
+          title: Currency
+        status:
+          $ref: '#/components/schemas/ListingStatus'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - collection_item_id
+      - seller
+      - card
+      - condition
+      - finish
+      - language
+      - quantity_available
+      - quantity_reserved
+      - price_cents
+      - currency
+      - status
+      - notes
+      - created_at
+      - updated_at
+      title: ListingRead
+    ListingStatus:
+      type: string
+      enum:
+      - active
+      - sold
+      - removed
+      - pending_sale
+      title: ListingStatus
+    ListingUpdate:
+      properties:
+        condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        quantity_available:
+          anyOf:
+          - type: integer
+            maximum: 10000.0
+            minimum: 1.0
+          - type: 'null'
+          title: Quantity Available
+        price_cents:
+          anyOf:
+          - type: integer
+            maximum: 10000000.0
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Price Cents
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Notes
+      type: object
+      title: ListingUpdate
+    MarketPriceRead:
+      properties:
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+        language:
+          type: string
+          title: Language
+        price_cents:
+          type: integer
+          title: Price Cents
+        source:
+          $ref: '#/components/schemas/PriceSource'
+        sales_count:
+          type: integer
+          title: Sales Count
+        computed_at:
+          type: string
+          format: date-time
+          title: Computed At
+      type: object
+      required:
+      - finish
+      - language
+      - price_cents
+      - source
+      - sales_count
+      - computed_at
+      title: MarketPriceRead
+      description: The marketplace price of a card in NM condition, for one finish and language.
+    MissingItem:
+      properties:
+        want_item_id:
+          type: string
+          format: uuid
+          title: Want Item Id
+        card:
+          $ref: '#/components/schemas/CardRead'
+        quantity:
+          type: integer
+          title: Quantity
+      type: object
+      required:
+      - want_item_id
+      - card
+      - quantity
+      title: MissingItem
+    ModerationActionRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        admin_id:
+          type: string
+          format: uuid
+          title: Admin Id
+        action:
+          $ref: '#/components/schemas/ModerationActionType'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - admin_id
+      - action
+      - target_id
+      - details
+      - note
+      - created_at
+      title: ModerationActionRead
+    ModerationActionType:
+      type: string
+      enum:
+      - set_account_status
+      - remove_listing
+      - remove_rating
+      - resolve_report
+      - resolve_issue
+      title: ModerationActionType
+    ModerationNote:
+      properties:
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+      type: object
+      title: ModerationNote
+    OptimizeRequest:
+      properties:
+        skip_owned:
+          type: boolean
+          title: Skip Owned
+          default: true
+        add_to_cart:
+          type: boolean
+          title: Add To Cart
+          default: false
+      type: object
+      title: OptimizeRequest
+    OptimizeResult:
+      properties:
+        sellers:
+          items:
+            $ref: '#/components/schemas/PlannedSeller'
+          type: array
+          title: Sellers
+        subtotal_cents:
+          type: integer
+          title: Subtotal Cents
+        shipping_cents:
+          type: integer
+          title: Shipping Cents
+        total_cents:
+          type: integer
+          title: Total Cents
+        missing:
+          items:
+            $ref: '#/components/schemas/MissingItem'
+          type: array
+          title: Missing
+        added_to_cart:
+          type: boolean
+          title: Added To Cart
+      type: object
+      required:
+      - sellers
+      - subtotal_cents
+      - shipping_cents
+      - total_cents
+      - missing
+      - added_to_cart
+      title: OptimizeResult
+    OrderItemRead:
+      properties:
+        listing_id:
+          type: string
+          format: uuid
+          title: Listing Id
+        card:
+          $ref: '#/components/schemas/CardRead'
+        condition:
+          $ref: '#/components/schemas/CardCondition'
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+        language:
+          type: string
+          title: Language
+        quantity:
+          type: integer
+          title: Quantity
+        price_cents:
+          type: integer
+          title: Price Cents
+      type: object
+      required:
+      - listing_id
+      - card
+      - condition
+      - finish
+      - language
+      - quantity
+      - price_cents
+      title: OrderItemRead
+    OrderRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        checkout_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Checkout Id
+        buyer_id:
+          type: string
+          format: uuid
+          title: Buyer Id
+        seller_id:
+          type: string
+          format: uuid
+          title: Seller Id
+        subtotal_cents:
+          type: integer
+          title: Subtotal Cents
+        shipping_cents:
+          type: integer
+          title: Shipping Cents
+        total_cents:
+          type: integer
+          title: Total Cents
+        currency:
+          type: string
+          title: Currency
+        platform_fee_cents:
+          type: integer
+          title: Platform Fee Cents
+        seller_payout_cents:
+          type: integer
+          title: Seller Payout Cents
+        refunded_cents:
+          type: integer
+          title: Refunded Cents
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        shipping_rate_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shipping Rate Name
+        shipping_address:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Shipping Address
+        tracking_number:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tracking Number
+        items:
+          items:
+            $ref: '#/components/schemas/OrderItemRead'
+          type: array
+          title: Items
+        paid_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Paid At
+        shipped_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Shipped At
+        delivered_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Delivered At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - checkout_id
+      - buyer_id
+      - seller_id
+      - subtotal_cents
+      - shipping_cents
+      - total_cents
+      - currency
+      - platform_fee_cents
+      - seller_payout_cents
+      - refunded_cents
+      - status
+      - shipping_rate_name
+      - shipping_address
+      - tracking_number
+      - items
+      - paid_at
+      - shipped_at
+      - delivered_at
+      - updated_at
+      - created_at
+      title: OrderRead
+    OrderRole:
+      type: string
+      enum:
+      - buyer
+      - seller
+      title: OrderRole
+      description: Which side of the order the current user is on, for listing their orders.
+    OrderShip:
+      properties:
+        tracking_number:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: Tracking Number
+      type: object
+      title: OrderShip
+    OrderStatus:
+      type: string
+      enum:
+      - pending
+      - paid
+      - shipped
+      - delivered
+      - disputed
+      - refunded
+      - cancelled
+      title: OrderStatus
+    Page_CardDetail_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CardDetail'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[CardDetail]
+    Page_CollectionItemRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CollectionItemRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[CollectionItemRead]
+    Page_IssueRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/IssueRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[IssueRead]
+    Page_ListingRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ListingRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ListingRead]
+    Page_ModerationActionRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ModerationActionRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ModerationActionRead]
+    Page_OrderRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/OrderRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[OrderRead]
+    Page_RatingRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RatingRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[RatingRead]
+    Page_ReportAdminRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ReportAdminRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ReportAdminRead]
+    Page_ReportRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ReportRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ReportRead]
+    Page_ScanRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ScanRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ScanRead]
+    PhotoUpload:
+      properties:
+        url:
+          type: string
+          title: Url
+        headers:
+          additionalProperties:
+            type: string
+          type: object
+          title: Headers
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+      type: object
+      required:
+      - url
+      - headers
+      - expires_at
+      title: PhotoUpload
+      description: PUT the file to url with these headers before expires_at.
+    PlannedLine:
+      properties:
+        want_item_id:
+          type: string
+          format: uuid
+          title: Want Item Id
+        listing:
+          $ref: '#/components/schemas/ListingRead'
+        quantity:
+          type: integer
+          title: Quantity
+      type: object
+      required:
+      - want_item_id
+      - listing
+      - quantity
+      title: PlannedLine
+    PlannedSeller:
+      properties:
+        seller:
+          $ref: '#/components/schemas/UserRead'
+        lines:
+          items:
+            $ref: '#/components/schemas/PlannedLine'
+          type: array
+          title: Lines
+        subtotal_cents:
+          type: integer
+          title: Subtotal Cents
+        shipping_rate_id:
+          type: string
+          format: uuid
+          title: Shipping Rate Id
+        shipping_cents:
+          type: integer
+          title: Shipping Cents
+      type: object
+      required:
+      - seller
+      - lines
+      - subtotal_cents
+      - shipping_rate_id
+      - shipping_cents
+      title: PlannedSeller
+    PricePoint:
+      properties:
+        day:
+          type: string
+          format: date
+          title: Day
+        price_cents:
+          type: integer
+          title: Price Cents
+        source:
+          $ref: '#/components/schemas/PriceSource'
+      type: object
+      required:
+      - day
+      - price_cents
+      - source
+      title: PricePoint
+      description: The NM market price from this day until the next point.
+    PriceSource:
+      type: string
+      enum:
+      - sales
+      - listings
+      title: PriceSource
+    RatingCreate:
+      properties:
+        order_id:
+          type: string
+          format: uuid
+          title: Order Id
+        rating:
+          type: integer
+          maximum: 5.0
+          minimum: 1.0
+          title: Rating
+        comment:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Comment
+      type: object
+      required:
+      - order_id
+      - rating
+      title: RatingCreate
+    RatingRead:
+      properties:
+        order_id:
+          type: string
+          format: uuid
+          title: Order Id
+        rating:
+          type: integer
+          maximum: 5.0
+          minimum: 1.0
+          title: Rating
+        comment:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Comment
+        id:
+          type: string
+          format: uuid
+          title: Id
+        rater_id:
+          type: string
+          format: uuid
+          title: Rater Id
+        ratee_id:
+          type: string
+          format: uuid
+          title: Ratee Id
+        role:
+          $ref: '#/components/schemas/RatingRole'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - order_id
+      - rating
+      - id
+      - rater_id
+      - ratee_id
+      - role
+      - created_at
+      title: RatingRead
+    RatingRole:
+      type: string
+      enum:
+      - buyer
+      - seller
+      title: RatingRole
+    RecognitionStatus:
+      type: string
+      enum:
+      - pending
+      - confirmed
+      - manual
+      - failed
+      title: RecognitionStatus
+    ReportAdminRead:
+      properties:
+        target_type:
+          $ref: '#/components/schemas/ReportTarget'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        details:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Details
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        reporter_id:
+          type: string
+          format: uuid
+          title: Reporter Id
+        resolved_by:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Resolved By
+        resolution_note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resolution Note
+      type: object
+      required:
+      - target_type
+      - target_id
+      - reason
+      - id
+      - status
+      - resolved_at
+      - created_at
+      - reporter_id
+      - resolved_by
+      - resolution_note
+      title: ReportAdminRead
+    ReportCreate:
+      properties:
+        target_type:
+          $ref: '#/components/schemas/ReportTarget'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        details:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Details
+      type: object
+      required:
+      - target_type
+      - target_id
+      - reason
+      title: ReportCreate
+    ReportRead:
+      properties:
+        target_type:
+          $ref: '#/components/schemas/ReportTarget'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        details:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Details
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - target_type
+      - target_id
+      - reason
+      - id
+      - status
+      - resolved_at
+      - created_at
+      title: ReportRead
+    ReportReason:
+      type: string
+      enum:
+      - counterfeit
+      - misdescribed
+      - scam
+      - harassment
+      - spam
+      - other
+      title: ReportReason
+    ReportResolve:
+      properties:
+        status:
+          type: string
+          enum:
+          - actioned
+          - dismissed
+          title: Status
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - status
+      title: ReportResolve
+    ReportStatus:
+      type: string
+      enum:
+      - open
+      - actioned
+      - dismissed
+      title: ReportStatus
+    ReportTarget:
+      type: string
+      enum:
+      - listing
+      - user
+      - rating
+      title: ReportTarget
+    SaleRead:
+      properties:
+        condition:
+          $ref: '#/components/schemas/CardCondition'
+        finish:
+          $ref: '#/components/schemas/CardFinish'
+        language:
+          type: string
+          title: Language
+        quantity:
+          type: integer
+          title: Quantity
+        price_cents:
+          type: integer
+          title: Price Cents
+        sold_on:
+          type: string
+          format: date
+          title: Sold On
+      type: object
+      required:
+      - condition
+      - finish
+      - language
+      - quantity
+      - price_cents
+      - sold_on
+      title: SaleRead
+      description: A past sale of a card. Who bought and sold it isn't shown.
+    ScanCandidate:
+      properties:
+        card:
+          $ref: '#/components/schemas/CardRead'
+        confidence:
+          type: number
+          title: Confidence
+        match:
+          type: string
+          enum:
+          - collector_number
+          - name
+          title: Match
+      type: object
+      required:
+      - card
+      - confidence
+      - match
+      title: ScanCandidate
+    ScanConfirm:
+      properties:
+        collection_id:
+          type: string
+          format: uuid
+          title: Collection Id
+        card_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Card Id
+        condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+        language:
+          anyOf:
+          - type: string
+            pattern: ^[a-z]{2,3}$
+          - type: 'null'
+          title: Language
+        quantity:
+          type: integer
+          maximum: 10000.0
+          minimum: 1.0
+          title: Quantity
+          default: 1
+      type: object
+      required:
+      - collection_id
+      title: ScanConfirm
+      description: 'Add the scanned card to a collection. card_id defaults to the best
+
+        candidate; finish and language default to what the photo showed.'
+    ScanCreate:
+      properties:
+        collector_text:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Collector Text
+        name_text:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Name Text
+        photo:
+          anyOf:
+          - $ref: '#/components/schemas/ScanPhoto'
+          - type: 'null'
+      type: object
+      title: ScanCreate
+      description: 'Start a scan. Include the text if it''s already read, to match in one call;
+
+        include photo to get a link to upload it to.'
+    ScanCreated:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/ScanStatus'
+        collector_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Collector Text
+        name_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name Text
+        detected_language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Detected Language
+        detected_foil:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Detected Foil
+        candidates:
+          items:
+            $ref: '#/components/schemas/ScanCandidate'
+          type: array
+          title: Candidates
+        collection_item_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Collection Item Id
+        photo_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Photo Url
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        upload:
+          anyOf:
+          - $ref: '#/components/schemas/PhotoUpload'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - status
+      - collector_text
+      - name_text
+      - detected_language
+      - detected_foil
+      - candidates
+      - collection_item_id
+      - photo_url
+      - created_at
+      title: ScanCreated
+    ScanPhoto:
+      properties:
+        content_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - image/webp
+          - image/heic
+          title: Content Type
+        size_bytes:
+          type: integer
+          minimum: 1.0
+          title: Size Bytes
+      type: object
+      required:
+      - content_type
+      - size_bytes
+      title: ScanPhoto
+    ScanRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/ScanStatus'
+        collector_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Collector Text
+        name_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name Text
+        detected_language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Detected Language
+        detected_foil:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Detected Foil
+        candidates:
+          items:
+            $ref: '#/components/schemas/ScanCandidate'
+          type: array
+          title: Candidates
+        collection_item_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Collection Item Id
+        photo_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Photo Url
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - status
+      - collector_text
+      - name_text
+      - detected_language
+      - detected_foil
+      - candidates
+      - collection_item_id
+      - photo_url
+      - created_at
+      title: ScanRead
+    ScanStatus:
+      type: string
+      enum:
+      - pending
+      - matched
+      - unmatched
+      - confirmed
+      title: ScanStatus
+    ScanText:
+      properties:
+        collector_text:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Collector Text
+        name_text:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Name Text
+      type: object
+      title: ScanText
+      description: Text the app read from the photo (OCR on the device).
+    SellerStatus:
+      properties:
+        stripe_account_created:
+          type: boolean
+          title: Stripe Account Created
+        can_sell:
+          type: boolean
+          title: Can Sell
+      type: object
+      required:
+      - stripe_account_created
+      - can_sell
+      title: SellerStatus
+    ShippingRateCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 60
+          minLength: 1
+          title: Name
+          examples:
+          - Untracked envelope
+        price_cents:
+          type: integer
+          maximum: 100000.0
+          minimum: 0.0
+          title: Price Cents
+        tracked:
+          type: boolean
+          title: Tracked
+          default: false
+      type: object
+      required:
+      - name
+      - price_cents
+      title: ShippingRateCreate
+    ShippingRateRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seller_id:
+          type: string
+          format: uuid
+          title: Seller Id
+        name:
+          type: string
+          title: Name
+        price_cents:
+          type: integer
+          title: Price Cents
+        currency:
+          type: string
+          title: Currency
+        tracked:
+          type: boolean
+          title: Tracked
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - seller_id
+      - name
+      - price_cents
+      - currency
+      - tracked
+      - created_at
+      - updated_at
+      title: ShippingRateRead
+    ShippingRateUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 60
+            minLength: 1
+          - type: 'null'
+          title: Name
+        price_cents:
+          anyOf:
+          - type: integer
+            maximum: 100000.0
+            minimum: 0.0
+          - type: 'null'
+          title: Price Cents
+        tracked:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Tracked
+      type: object
+      title: ShippingRateUpdate
+    StripeLink:
+      properties:
+        url:
+          type: string
+          title: Url
+      type: object
+      required:
+      - url
+      title: StripeLink
+      description: A short-lived Stripe page to redirect to.
+    SuggestedPrice:
+      properties:
+        price_cents:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Cents
+        source:
+          anyOf:
+          - type: string
+            enum:
+            - sales
+            - listings
+            - reference
+          - type: 'null'
+          title: Source
+        sales_count:
+          type: integer
+          title: Sales Count
+          default: 0
+      type: object
+      required:
+      - price_cents
+      - source
+      title: SuggestedPrice
+      description: 'A starting price for a new listing, scaled to its condition. Null when
+
+        there''s nothing to go on.'
+    UserCreate:
+      properties:
+        username:
+          type: string
+          maxLength: 30
+          minLength: 3
+          pattern: ^[A-Za-z0-9_]+$
+          title: Username
+        display_name:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Display Name
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+        bio:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Bio
+      type: object
+      required:
+      - username
+      title: UserCreate
+    UserRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        username:
+          type: string
+          title: Username
+        display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Display Name
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+        bio:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bio
+        account_status:
+          $ref: '#/components/schemas/AccountStatus'
+        seller_rating_avg:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Seller Rating Avg
+        seller_rating_count:
+          type: integer
+          title: Seller Rating Count
+        buyer_rating_avg:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Buyer Rating Avg
+        buyer_rating_count:
+          type: integer
+          title: Buyer Rating Count
+        total_sales:
+          type: integer
+          title: Total Sales
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - id
+      - username
+      - display_name
+      - avatar_url
+      - bio
+      - account_status
+      - seller_rating_avg
+      - seller_rating_count
+      - buyer_rating_avg
+      - buyer_rating_count
+      - total_sales
+      title: UserRead
+    UserUpdate:
+      properties:
+        display_name:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Display Name
+        avatar_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar Url
+        bio:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Bio
+      type: object
+      title: UserUpdate
+    WantItemCreate:
+      properties:
+        card_id:
+          type: string
+          format: uuid
+          title: Card Id
+        any_printing:
+          type: boolean
+          title: Any Printing
+          default: true
+        quantity:
+          type: integer
+          maximum: 10000.0
+          minimum: 1.0
+          title: Quantity
+          default: 1
+        min_condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+        language:
+          anyOf:
+          - type: string
+            pattern: ^[a-z]{2,3}$
+          - type: 'null'
+          title: Language
+        max_price_cents:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Max Price Cents
+      type: object
+      required:
+      - card_id
+      title: WantItemCreate
+    WantItemRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        card:
+          $ref: '#/components/schemas/CardRead'
+        any_printing:
+          type: boolean
+          title: Any Printing
+        quantity:
+          type: integer
+          title: Quantity
+        min_condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+        language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Language
+        max_price_cents:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Price Cents
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - card
+      - any_printing
+      - quantity
+      - min_condition
+      - finish
+      - language
+      - max_price_cents
+      - created_at
+      title: WantItemRead
+    WantItemStatus:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        card:
+          $ref: '#/components/schemas/CardRead'
+        any_printing:
+          type: boolean
+          title: Any Printing
+        quantity:
+          type: integer
+          title: Quantity
+        min_condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+        language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Language
+        max_price_cents:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Price Cents
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        owned:
+          type: integer
+          title: Owned
+        available:
+          type: integer
+          title: Available
+        lowest_price_cents:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Lowest Price Cents
+      type: object
+      required:
+      - id
+      - card
+      - any_printing
+      - quantity
+      - min_condition
+      - finish
+      - language
+      - max_price_cents
+      - created_at
+      - owned
+      - available
+      - lowest_price_cents
+      title: WantItemStatus
+      description: An item with what the caller owns and what's for sale.
+    WantItemUpdate:
+      properties:
+        any_printing:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Any Printing
+        quantity:
+          anyOf:
+          - type: integer
+            maximum: 10000.0
+            minimum: 1.0
+          - type: 'null'
+          title: Quantity
+        min_condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+        finish:
+          anyOf:
+          - $ref: '#/components/schemas/CardFinish'
+          - type: 'null'
+        language:
+          anyOf:
+          - type: string
+            pattern: ^[a-z]{2,3}$
+          - type: 'null'
+          title: Language
+        max_price_cents:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Max Price Cents
+      type: object
+      title: WantItemUpdate
+      description: 'Only the fields sent change; send null to clear min_condition, finish,
+
+        language or max_price_cents.'
+    WantsImport:
+      properties:
+        text:
+          type: string
+          maxLength: 200000
+          minLength: 1
+          title: Text
+        min_condition:
+          anyOf:
+          - $ref: '#/components/schemas/CardCondition'
+          - type: 'null'
+      type: object
+      required:
+      - text
+      title: WantsImport
+      description: 'A pasted decklist (Arena, MTGO or plain "4 Lightning Bolt" lines). Lines
+
+        with a set and number want that printing; others want any printing.'
+    WantsImportResult:
+      properties:
+        added:
+          type: integer
+          title: Added
+        updated:
+          type: integer
+          title: Updated
+        unmatched:
+          items:
+            $ref: '#/components/schemas/ImportProblem'
+          type: array
+          title: Unmatched
+      type: object
+      required:
+      - added
+      - updated
+      - unmatched
+      title: WantsImportResult
+    WantsListCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+      type: object
+      required:
+      - name
+      title: WantsListCreate
+    WantsListRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        item_count:
+          type: integer
+          title: Item Count
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - created_at
+      - updated_at
+      title: WantsListRead
+    Error:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable code, e.g. not_found, validation_error, account_suspended, rate_limited
+            message:
+              type: string
+              description: Human-readable explanation
+            details:
+              description: Extra information; for validation_error, a list of {loc, msg}
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Supabase access token for a user with a confirmed email.
+servers:
+- url: http://localhost:8000
+  description: Local (uvicorn)
