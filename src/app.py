@@ -17,6 +17,7 @@ from routes.stripe_webhook import router as stripe_webhook_router
 from routes.user import router as user_router
 from routes.wants import router as wants_router
 from utils.errors import register_error_handlers
+from utils.openapi import build_openapi
 from utils.rate_limit import RateLimitMiddleware
 from utils.settings import settings
 
@@ -30,7 +31,13 @@ if settings.sentry_dsn:
         traces_sample_rate=settings.sentry_traces_sample_rate,
     )
 
-app = FastAPI(title="MTG Marketplace API")
+app = FastAPI(
+    title="MTG Marketplace API",
+    version="1.0.0",
+    description="Buy, sell and collect Magic: The Gathering cards. Endpoints live under /v1; authenticate with a "
+                "Supabase access token as a bearer token.",
+)
+app.openapi = lambda: build_openapi(app)  # type: ignore[method-assign]
 register_error_handlers(app)
 
 # Middleware added last runs first: CORS wraps everything, so even 429
@@ -55,6 +62,6 @@ for router in (user_router, address_router, card_router, collection_router,
 app.include_router(v1)
 
 
-@app.get("/health")
+@app.get("/health", tags=["health"])
 async def health() -> dict[str, str]:
     return {"status": "ok"}

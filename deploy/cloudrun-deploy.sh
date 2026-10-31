@@ -6,7 +6,8 @@
 # Usage (from the repo root):
 #   GCP_PROJECT=my-project ./deploy/cloudrun-deploy.sh
 #
-# Run database migrations first if there are new ones:
+# The Deploy workflow migrates the database first; when deploying from a
+# laptop, do that yourself if there are new migrations:
 #   cd src && ../.venv/bin/alembic upgrade head
 set -euo pipefail
 

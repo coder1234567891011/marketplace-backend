@@ -6,8 +6,12 @@
 # "production" environment):
 #   GCP_PROJECT=<project-id> ./deploy/github-deploy-setup.sh
 #
-# Database migrations are not run here; run `alembic upgrade head` before
-# merging a change that needs one.
+# Database migrations run before the new image is built, so a failed
+# migration stops the deploy and the old revision keeps serving. They need the
+# DATABASE_URL secret on the "production" environment (the Scryfall sync uses
+# it too). Migrations run while the old revision is still live, so they must
+# be backward compatible: add columns and tables first, drop them in a later
+# release.
 name: Deploy
 
 on:
@@ -39,6 +43,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Migrate database
+        working-directory: src
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          alembic upgrade head
+          alembic current
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@f112390a2df9932162083945e46d439060d66ec2 # v2

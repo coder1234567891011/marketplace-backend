@@ -43,6 +43,20 @@ cd src && ../.venv/bin/uvicorn app:app --reload
 
 API docs: http://localhost:8000/docs. All endpoints live under `/v1`.
 
+### API spec and Postman collection
+
+- **`api-spec.yaml`:** the OpenAPI 3.1 description, the same as `/openapi.json`. It shows which endpoints need a bearer token (`security`) and the error format (`Error`).
+- **`postman_collection.json`:** one folder per area, with example bodies.
+  - Import it into Postman, then set `supabaseAnonKey`, `email` and `password` in the collection variables.
+  - Run **auth → Sign in (Supabase)** to store a token in `{{token}}`, which every request sends.
+  - `baseUrl` defaults to `http://localhost:8000`; point it at Cloud Run for the deployed API.
+
+Both are generated from the app. Regenerate them after changing endpoints (a test fails while they're out of date):
+
+```bash
+cd src && ../.venv/bin/python -m scripts.export_api
+```
+
 ## Card catalog
 
 `cards` holds one row per paper printing, synced from Scryfall's `default_cards` bulk file by `src/scripts/scryfall_sync.py`. Scryfall's TCGplayer/Cardmarket prices go in `card_prices` and are shown only as an outside reference (`reference_prices`). Card images are hotlinked from Scryfall, not stored.
@@ -138,7 +152,7 @@ GCP_PROJECT=your-project-id ./deploy/github-deploy-setup.sh
 2. `github-deploy-setup.sh` creates the `github-deployer` service account and lets only workflow runs on this repository's `main` branch use it. It then sets the `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SA` repository variables (with the GitHub CLI if installed; otherwise it prints them to add under Settings → Secrets and variables → Actions → Variables).
 3. Push to `main` (or run the Deploy workflow by hand) for the first deploy, then set up the kill switch below.
 
-Migrations aren't run by the workflow: run `alembic upgrade head` from `src/` before merging a change that needs one.
+The workflow runs `alembic upgrade head` before building the image, using the `DATABASE_URL` secret on the `production` environment (the same one the Scryfall sync uses). A failed migration stops the deploy, and the old revision keeps serving. Because migrations run while the old revision is still live, keep them backward compatible: add columns and tables in one release and drop old ones in a later one.
 
 To deploy from your own machine instead (Docker must be running):
 
@@ -261,7 +275,7 @@ Locally:
 
 Deployed (test mode):
 
-- [ ] **Migration:** `alembic upgrade head` against production, then `alembic current` shows `0005`.
+- [ ] **Migration:** the Deploy run's "Migrate database" step ends with `alembic current` showing the newest migration (`0008` now).
 - [ ] **Webhook endpoint and secrets:** created and stored as in "Deployed webhook", then redeployed.
 - [ ] **One real purchase:** repeat seller setup, paying and shipping against the Cloud Run URL. The endpoint's deliveries in the Stripe dashboard all show 200.
 
