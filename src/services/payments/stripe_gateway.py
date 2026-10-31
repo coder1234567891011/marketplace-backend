@@ -55,8 +55,10 @@ class Gateway(Protocol):
     async def charge_id(self, payment_intent_id: str) -> str: ...
     async def transfer(self, order_id: str, amount_cents: int, currency: str, account_id: str,
                        charge_id: str, transfer_group: str) -> str: ...
-    async def reverse_transfer(self, order_id: str, transfer_id: str) -> None: ...
-    async def refund(self, order_id: str, payment_intent_id: str, amount_cents: int) -> str: ...
+    # key identifies the refund (an order id, "issue-<id>", "checkout-<id>") and
+    # makes retries idempotent.
+    async def reverse_transfer(self, key: str, transfer_id: str, amount_cents: int) -> None: ...
+    async def refund(self, key: str, payment_intent_id: str, amount_cents: int) -> str: ...
     def parse_webhook(self, payload: bytes, signature: str) -> dict[str, Any]: ...
 
 
@@ -161,14 +163,15 @@ class StripeGateway:
         }, {"idempotency_key": f"transfer-{order_id}"}))
         return str(transfer.id)
 
-    async def reverse_transfer(self, order_id: str, transfer_id: str) -> None:
+    async def reverse_transfer(self, key: str, transfer_id: str, amount_cents: int) -> None:
         await self._call(self._client.v1.transfers.reversals.create_async(
-            transfer_id, None, {"idempotency_key": f"reversal-{order_id}"}))
+            transfer_id, {"amount": amount_cents, "metadata": {"refund": key}},
+            {"idempotency_key": f"reversal-{key}"}))
 
-    async def refund(self, order_id: str, payment_intent_id: str, amount_cents: int) -> str:
+    async def refund(self, key: str, payment_intent_id: str, amount_cents: int) -> str:
         refund = await self._call(self._client.v1.refunds.create_async({
-            "payment_intent": payment_intent_id, "amount": amount_cents, "metadata": {"order_id": order_id},
-        }, {"idempotency_key": f"refund-{order_id}"}))
+            "payment_intent": payment_intent_id, "amount": amount_cents, "metadata": {"refund": key},
+        }, {"idempotency_key": f"refund-{key}"}))
         return str(refund.id)
 
     def parse_webhook(self, payload: bytes, signature: str) -> dict[str, Any]:

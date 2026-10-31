@@ -24,7 +24,7 @@ class FakeStripe:
     accounts: dict[str, bool] = field(default_factory=dict)  # account id → ready
     sessions: dict[str, FakeSession] = field(default_factory=dict)
     transfers: dict[str, dict[str, Any]] = field(default_factory=dict)  # order id → transfer
-    reversed: list[str] = field(default_factory=list)
+    reversed: list[tuple[str, int]] = field(default_factory=list)  # (transfer id, amount)
     refunds: dict[str, int] = field(default_factory=dict)  # idempotency id → amount
     fail_transfers: bool = False
 
@@ -68,12 +68,12 @@ class FakeStripe:
                                              "destination": account_id, "source_transaction": charge_id})
         return str(self.transfers[order_id]["id"])
 
-    async def reverse_transfer(self, order_id: str, transfer_id: str) -> None:
-        self.reversed.append(transfer_id)
+    async def reverse_transfer(self, key: str, transfer_id: str, amount_cents: int) -> None:
+        self.reversed.append((transfer_id, amount_cents))
 
-    async def refund(self, order_id: str, payment_intent_id: str, amount_cents: int) -> str:
-        self.refunds[order_id] = amount_cents
-        return f"re_{order_id[:8]}"
+    async def refund(self, key: str, payment_intent_id: str, amount_cents: int) -> str:
+        self.refunds[key] = amount_cents
+        return f"re_{key[:8]}"
 
     def parse_webhook(self, payload: bytes, signature: str) -> dict[str, Any]:
         if signature != "valid":

@@ -36,6 +36,8 @@ class OrderRead(_ORMBase):
     # The platform's fee and what the seller receives (total minus fee).
     platform_fee_cents: int
     seller_payout_cents: int
+    # Refunded to the buyer so far (all of total_cents once status is refunded).
+    refunded_cents: int
     status: OrderStatus
     shipping_rate_name: str | None
     shipping_address: dict[str, Any] | None

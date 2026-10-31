@@ -2728,6 +2728,782 @@
       ]
     },
     {
+      "name": "issues",
+      "item": [
+        {
+          "name": "List Order Issues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/orders/:order_id/issues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "orders",
+                ":order_id",
+                "issues"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "order_id",
+                  "value": "",
+                  "description": "order_id"
+                }
+              ]
+            },
+            "description": "An order's issues, newest first (buyer or seller)."
+          }
+        },
+        {
+          "name": "Open Issue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/orders/:order_id/issues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "orders",
+                ":order_id",
+                "issues"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "order_id",
+                  "value": "",
+                  "description": "order_id"
+                }
+              ]
+            },
+            "description": "Buyer: report a problem with a paid order. The seller is emailed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"not_received\",\n  \"message\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List My Issues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/issues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "issues"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "buyer",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "open",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "string",
+                  "description": "",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "Issues the caller opened as a buyer, or (role=seller) that were opened on their sales."
+          }
+        },
+        {
+          "name": "Read Issue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/issues/:issue_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "issues",
+                ":issue_id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Add Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/issues/:issue_id/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "issues",
+                ":issue_id",
+                "messages"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Refund Issue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/issues/:issue_id/refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "issues",
+                ":issue_id",
+                "refund"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": "Seller: refund all (default) or part of the order, resolving the issue.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount_cents\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Escalate Issue",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/issues/:issue_id/escalate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "issues",
+                ":issue_id",
+                "escalate"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": "Ask a moderator to decide: the seller any time, the buyer once escalate_after has passed."
+          }
+        },
+        {
+          "name": "Withdraw Issue",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/issues/:issue_id/withdraw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "issues",
+                ":issue_id",
+                "withdraw"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": "Buyer: close the issue without a refund."
+          }
+        }
+      ]
+    },
+    {
+      "name": "reports",
+      "item": [
+        {
+          "name": "List My Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "string",
+                  "description": "",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "reports"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Flag a listing, user or rating for the moderators.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_type\": \"listing\",\n  \"target_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"reason\": \"counterfeit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin",
+      "item": [
+        {
+          "name": "List Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "target_type",
+                  "value": "listing",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "string",
+                  "description": "",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "Reports, newest first; open ones by default."
+          }
+        },
+        {
+          "name": "Resolve Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/reports/:report_id/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "reports",
+                ":report_id",
+                "resolve"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "report_id",
+                  "value": "",
+                  "description": "report_id"
+                }
+              ]
+            },
+            "description": "Close a report. Acting on its target (below) closes its reports as actioned anyway.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"actioned\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Set Account Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/users/:user_id/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "users",
+                ":user_id",
+                "status"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "user_id"
+                }
+              ]
+            },
+            "description": "Suspend (read-only), ban, or reinstate (active) an account. The user is emailed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/listings/:listing_id/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "listings",
+                ":listing_id",
+                "remove"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "listing_id",
+                  "value": "",
+                  "description": "listing_id"
+                }
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove Rating",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/ratings/:rating_id/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "ratings",
+                ":rating_id",
+                "remove"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "rating_id",
+                  "value": "",
+                  "description": "rating_id"
+                }
+              ]
+            },
+            "description": "Delete a rating (e.g. an abusive comment); the user's average is recalculated.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List Issues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/issues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "issues"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "escalated",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "string",
+                  "description": "",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "Order issues, newest first; escalated ones by default."
+          }
+        },
+        {
+          "name": "Read Issue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/issues/:issue_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "issues",
+                ":issue_id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Message Issue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/issues/:issue_id/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "issues",
+                ":issue_id",
+                "messages"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": "Ask the buyer or seller something; both are emailed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Decide Issue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/issues/:issue_id/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "issues",
+                ":issue_id",
+                "resolve"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "issue_id",
+                  "value": "",
+                  "description": "issue_id"
+                }
+              ]
+            },
+            "description": "Decide an issue: refund refund_cents to the buyer (0 for none).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refund_cents\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List Actions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "actions"
+              ],
+              "query": [
+                {
+                  "key": "target_id",
+                  "value": "00000000-0000-0000-0000-000000000000",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "string",
+                  "description": "",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "The moderation log, newest first, optionally for one user, listing, rating or issue."
+          }
+        }
+      ]
+    },
+    {
       "name": "health",
       "item": [
         {

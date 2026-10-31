@@ -58,9 +58,28 @@ class Settings(BaseSettings):
     platform_fee_min_cents: int = Field(default=0, ge=0)
     # How long checkout holds the copies; Stripe allows 30 minutes to 24 hours.
     checkout_hold_minutes: int = Field(default=30, ge=30, le=1440)
-    # When sellers are paid: when they mark the order shipped (protects
-    # buyers), or as soon as the buyer pays.
-    payout_on: Literal["shipped", "paid"] = "shipped"
+    # When sellers are paid: when they mark the order shipped, as soon as the
+    # buyer pays, or once it's delivered (confirmed by the buyer, or
+    # automatically after auto_deliver_days) with no issue left open. Later
+    # is safer for buyers: a refund then comes out of the payout instead of
+    # being clawed back from the seller's Stripe balance.
+    payout_on: Literal["shipped", "paid", "delivered"] = "shipped"
+
+    # Buyer protection (services/issues). Buyers can open an issue on a paid
+    # order until issue_window_days after it's delivered. Sellers get
+    # issue_seller_days to sort it out before the buyer can escalate it to a
+    # moderator. Shipped orders count as delivered after auto_deliver_days
+    # unless an issue is open (scripts/order_maintenance.py, nightly).
+    issue_window_days: int = Field(default=30, ge=1, le=180)
+    issue_seller_days: int = Field(default=3, ge=0, le=30)
+    auto_deliver_days: int = Field(default=21, ge=3, le=90)
+
+    # Transactional email through Resend (services/email). Without an API
+    # key, emails are recorded as skipped instead of sent.
+    resend_api_key: str = ""
+    # e.g. "MTG Marketplace <orders@example.com>", on a domain verified in Resend.
+    email_from: str = ""
+    email_max_attempts: int = Field(default=5, ge=1, le=20)
 
     # Market prices, recomputed nightly (scripts/market_prices.py): the median
     # of a card's last market_price_sales sales within market_price_days, once

@@ -63,6 +63,7 @@ auth_users = Table(
     "users",
     Base.metadata,
     Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("email", Text),
     Column("email_confirmed_at", DateTime(timezone=True)),
     schema="auth",
 )
@@ -155,6 +156,60 @@ class RatingRole(str, enum.Enum):
     seller = "seller"
 
 
+class IssueReason(str, enum.Enum):
+    not_received = "not_received"
+    not_as_described = "not_as_described"   # wrong card, condition, finish or language
+    other = "other"
+
+
+class IssueStatus(str, enum.Enum):
+    open = "open"            # waiting for the seller
+    escalated = "escalated"  # waiting for the marketplace to decide
+    resolved = "resolved"
+
+
+class IssueResolution(str, enum.Enum):
+    refunded = "refunded"    # some or all of the order was refunded
+    no_refund = "no_refund"  # decided for the seller
+    withdrawn = "withdrawn"  # the buyer closed it
+
+
+class ReportTarget(str, enum.Enum):
+    listing = "listing"
+    user = "user"
+    rating = "rating"
+
+
+class ReportReason(str, enum.Enum):
+    counterfeit = "counterfeit"
+    misdescribed = "misdescribed"
+    scam = "scam"
+    harassment = "harassment"
+    spam = "spam"
+    other = "other"
+
+
+class ReportStatus(str, enum.Enum):
+    open = "open"
+    actioned = "actioned"    # a moderator acted on it
+    dismissed = "dismissed"
+
+
+class ModerationActionType(str, enum.Enum):
+    set_account_status = "set_account_status"
+    remove_listing = "remove_listing"
+    remove_rating = "remove_rating"
+    resolve_report = "resolve_report"
+    resolve_issue = "resolve_issue"
+
+
+class EmailStatus(str, enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"      # gave up after settings.email_max_attempts
+    skipped = "skipped"    # email isn't configured, or the user has no address
+
+
 class PriceSource(str, enum.Enum):
     sales = "sales"          # median of recent sales on the marketplace
     listings = "listings"    # not enough sales: the cheapest NM listing for sale
@@ -183,6 +238,8 @@ class User(Base):
         TextEnum(AccountStatus), default=AccountStatus.active, server_default=text("'active'")
     )
     email_verified: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    # Moderators: set by hand in the database (see README "Moderation").
+    is_admin: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
 
     seller_rating_avg: Mapped[float | None] = mapped_column(Numeric(3, 2))
     seller_rating_count: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
@@ -601,6 +658,10 @@ class Order(Base):
     fee_fixed_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     platform_fee_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     seller_payout_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    # Refunded to the buyer so far, and the part of that taken from the
+    # seller's payout (the platform covers the rest; see orders.refund).
+    refunded_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    seller_refunded_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
 
     status: Mapped[OrderStatus] = mapped_column(
         TextEnum(OrderStatus), default=OrderStatus.pending, server_default=text("'pending'")
@@ -683,4 +744,129 @@ class Rating(Base):
     role: Mapped[RatingRole] = mapped_column(TextEnum(RatingRole))
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+# ----------------------------------------------------------------
+# ORDER ISSUES
+# ----------------------------------------------------------------
+class OrderIssue(Base):
+    """A buyer's problem with an order. The seller can refund it; otherwise
+    either side escalates it and a moderator decides."""
+    __tablename__ = "order_issues"
+    __table_args__ = (
+        enum_check("reason", IssueReason),
+        enum_check("status", IssueStatus),
+        enum_check("resolution", IssueResolution),
+        # At most one unresolved issue per order.
+        Index("uq_order_issues_unresolved", "order_id", unique=True, postgresql_where=text("status <> 'resolved'")),
+        Index("idx_order_issues_status", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orders.id"))
+    # Copied from the order, for listing a party's issues without a join.
+    buyer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    seller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    reason: Mapped[IssueReason] = mapped_column(TextEnum(IssueReason))
+    status: Mapped[IssueStatus] = mapped_column(
+        TextEnum(IssueStatus), default=IssueStatus.open, server_default=text("'open'")
+    )
+    resolution: Mapped[IssueResolution | None] = mapped_column(TextEnum(IssueResolution))
+    refund_cents: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    escalated_at: Mapped[datetime | None]
+    resolved_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"), onupdate=func.now())
+
+    messages: Mapped[list[IssueMessage]] = relationship(lazy="raise", passive_deletes=True,
+                                                        order_by="IssueMessage.created_at, IssueMessage.id")
+
+
+class IssueMessage(Base):
+    __tablename__ = "issue_messages"
+    __table_args__ = (Index("idx_issue_messages_issue", "issue_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    issue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("order_issues.id", ondelete="CASCADE"))
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+# ----------------------------------------------------------------
+# REPORTS AND MODERATION
+# ----------------------------------------------------------------
+class Report(Base):
+    """A user flagging a listing, user or rating for moderators."""
+    __tablename__ = "reports"
+    __table_args__ = (
+        enum_check("target_type", ReportTarget),
+        enum_check("reason", ReportReason),
+        enum_check("status", ReportStatus),
+        # One open report per reporter and target.
+        Index("uq_reports_open", "reporter_id", "target_type", "target_id", unique=True,
+              postgresql_where=text("status = 'open'")),
+        Index("idx_reports_status", "status", "created_at"),
+        Index("idx_reports_target", "target_type", "target_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reporter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    target_type: Mapped[ReportTarget] = mapped_column(TextEnum(ReportTarget))
+    # A listings, users or ratings id, by target_type.
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    reason: Mapped[ReportReason] = mapped_column(TextEnum(ReportReason))
+    details: Mapped[str | None] = mapped_column()
+    status: Mapped[ReportStatus] = mapped_column(
+        TextEnum(ReportStatus), default=ReportStatus.open, server_default=text("'open'")
+    )
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    resolution_note: Mapped[str | None] = mapped_column()
+    resolved_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+class ModerationAction(Base):
+    """What moderators did, for the record."""
+    __tablename__ = "moderation_actions"
+    __table_args__ = (
+        enum_check("action", ModerationActionType),
+        Index("idx_moderation_actions_target", "target_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    admin_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    action: Mapped[ModerationActionType] = mapped_column(TextEnum(ModerationActionType))
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    # e.g. {"account_status": "suspended"} or {"refund_cents": 500}.
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    note: Mapped[str | None] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+
+
+# ----------------------------------------------------------------
+# EMAILS
+# ----------------------------------------------------------------
+class Email(Base):
+    """An email to a user, written in the same transaction as what it's
+    about (an outbox), then sent by services/email/sender.py. The address is
+    looked up when sending, so it follows changes in Supabase."""
+    __tablename__ = "emails"
+    __table_args__ = (
+        enum_check("status", EmailStatus),
+        Index("idx_emails_pending", "created_at", postgresql_where=text("status = 'pending'")),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # A template in services/email/templates.py, and the values it fills in.
+    template: Mapped[str] = mapped_column(nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    status: Mapped[EmailStatus] = mapped_column(
+        TextEnum(EmailStatus), default=EmailStatus.pending, server_default=text("'pending'")
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    last_error: Mapped[str | None] = mapped_column()
+    sent_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))

@@ -24,6 +24,8 @@ Settings are read from environment variables (or `src/.env` locally):
 | `PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS`, `CHECKOUT_HOLD_MINUTES`, `PAYOUT_ON` | Marketplace terms, see "Cart, checkout and payments" |
 | `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` | S3-compatible bucket for scan photos, see "Card scanning". Photo uploads return 503 without them |
 | `MARKET_PRICE_DAYS`, `MARKET_PRICE_SALES`, `MARKET_PRICE_MIN_SALES`, `CONDITION_PRICE_FACTORS` | How market prices are worked out, see "Market prices" |
+| `ISSUE_WINDOW_DAYS`, `ISSUE_SELLER_DAYS`, `AUTO_DELIVER_DAYS` | Buyer protection, see "Order issues" (placeholders: 30, 3, 21) |
+| `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_MAX_ATTEMPTS` | Transactional email, see "Emails". Emails are recorded as `skipped` without them |
 
 ## Access rules
 
@@ -31,6 +33,7 @@ Every authenticated request is checked against the database:
 - the Supabase user must have a confirmed email (`403 email_unconfirmed`)
 - banned accounts are rejected everywhere (`403 account_banned`)
 - suspended accounts can read but not write (`403 account_suspended`)
+- `/v1/admin` endpoints need a moderator (`users.is_admin`, `403 not_moderator`; see "Moderation")
 
 Rate limits are kept in process memory, so they assume a single instance (Cloud Run `--max-instances 1`, or one Fly machine). Move them to Redis before running several instances.
 
@@ -93,8 +96,8 @@ Payments use Stripe: Checkout (Stripe's hosted payment page) and Connect Express
 - **Cart:** `PUT /v1/cart/items/{listing_id}` with `{"quantity": n}`, `DELETE` to remove, `GET /v1/cart` grouped by seller, with any lines that can't be bought (`problem`) and each seller's shipping rates. The cart holds nothing.
 - **Checkout:** `POST /v1/checkout` with `{"shipping_address_id": …, "shipping_rates": {seller_id: rate_id}}` (sellers left out get their cheapest rate; the address needs a `recipient_name`). It creates one order per seller, holds the copies (`quantity_available → quantity_reserved`) and returns `url`, Stripe's payment page. The hold lasts `CHECKOUT_HOLD_MINUTES`; a buyer has one open checkout at a time and can cancel it (`POST /v1/checkout/{id}/cancel`). After paying, Stripe sends the buyer to `FRONTEND_URL/checkout/{id}?result=success`; poll `GET /v1/checkout/{id}` until `status` is `paid`.
 - **Webhook:** `POST /v1/stripe/webhook`. Payment marks orders `paid`, sells the held copies (removing them from the seller's collection) and empties those cart lines; expiry puts the copies back on sale and cancels the orders. Events are recorded in `stripe_events`, so redeliveries are ignored.
-- **Orders:** sellers `POST /v1/orders/{id}/ship` (optional `tracking_number`) or `/refund` (full refund of an unshipped order); buyers `POST /v1/orders/{id}/received`, which allows ratings. Sellers only see orders once paid. A dispute webhook marks the checkout's orders `disputed`.
-- **Fees and payouts:** each order records its fee terms, the `platform_fee_cents` and the `seller_payout_cents` (total minus fee). The seller is paid when they ship (`PAYOUT_ON=shipped`) or when the buyer pays (`PAYOUT_ON=paid`); a refund reverses the payout first. Terms are settings (`PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS`, `CHECKOUT_HOLD_MINUTES`, `PAYOUT_ON` in `deploy/cloudrun.env.yaml`); the current values are placeholders.
+- **Orders:** sellers `POST /v1/orders/{id}/ship` (optional `tracking_number`) or `/refund` (cancel an unshipped order with a full refund); buyers `POST /v1/orders/{id}/received`, which allows ratings. Shipped orders count as delivered after `AUTO_DELIVER_DAYS` if the buyer never says. Sellers only see orders once paid. Problems after payment go through order issues (below). A dispute webhook (the buyer's bank) marks the checkout's orders `disputed`, and the API won't refund those.
+- **Fees and payouts:** each order records its fee terms, the `platform_fee_cents` and the `seller_payout_cents` (total minus fee). The seller is paid when they ship (`PAYOUT_ON=shipped`), when the buyer pays (`paid`), or once the order is delivered with no issue open (`delivered`). Refunds can be partial (`refunded_cents` on the order); each comes out of the seller's payout first (reversed from their Stripe account if they've been paid, otherwise taken off the payout), and only the part beyond the payout, i.e. the platform's fee on a full refund, is the platform's cost. Terms are settings (`PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS`, `CHECKOUT_HOLD_MINUTES`, `PAYOUT_ON` in `deploy/cloudrun.env.yaml`); the current values are placeholders.
 
 ### Testing payments locally
 
@@ -255,6 +258,43 @@ Prices come from sales on the marketplace. Scryfall's TCGplayer and Cardmarket p
 - **History:** `price_snapshots` only gets a row on days a price changed, which keeps it small; the price on any day is the latest row on or before it. `price-history` starts with the price in force when the period began.
 - **Suggested price:** the market price scaled to the listing's condition. With no market price yet, Scryfall's TCGplayer price for that finish, scaled the same way and marked `source: "reference"`, but only in the printing's own language.
 
+## Order issues
+
+Buyer protection after payment (`services/issues`).
+
+- **Opening:** the buyer `POST /v1/orders/{id}/issues` with a `reason` (`not_received`, `not_as_described`, `other`) and a first `message`, on a paid, shipped or delivered order, until `ISSUE_WINDOW_DAYS` after delivery. One unresolved issue per order. The seller is emailed.
+- **Sorting it out:** both sides `POST /v1/issues/{id}/messages`. The seller `POST /v1/issues/{id}/refund`, with `amount_cents` for a partial refund (default: everything left), which resolves it. The buyer can `withdraw`. Marking the order received closes a `not_received` issue, and cancelling an unshipped order settles any issue.
+- **Escalating:** the seller any time, or the buyer once `escalate_after` has passed (`ISSUE_SELLER_DAYS` after opening), `POST /v1/issues/{id}/escalate`. A moderator then decides (below).
+- **Effect on the order:** while an issue is unresolved the order isn't auto-delivered, and with `PAYOUT_ON=delivered` the seller isn't paid.
+- **Listing:** `GET /v1/issues?role=buyer|seller&status=`, `GET /v1/orders/{id}/issues`, `GET /v1/issues/{id}` (with messages; `from_moderator` marks a moderator's).
+- **Nightly job:** `src/scripts/order_maintenance.py` auto-delivers and, with `PAYOUT_ON=delivered`, pays sellers who are due (retrying failed payouts; failures fail the workflow run). It runs in the Scryfall sync workflow, so set the `production` environment's `STRIPE_SECRET_KEY` secret and `PAYOUT_ON` variable (matching `deploy/cloudrun.env.yaml`) there.
+
+## Moderation
+
+Moderators are users with `users.is_admin` set. There's no endpoint for it; in the Supabase SQL editor:
+
+```sql
+update users set is_admin = true where username = 'your-username';
+```
+
+- **Reports:** any user `POST /v1/reports` with `target_type` (`listing`, `user`, `rating`), `target_id`, `reason` and optional `details`; `GET /v1/reports` shows their own and whether they were acted on.
+- **Queue:** `GET /v1/admin/reports` (open by default) and `GET /v1/admin/issues` (escalated by default).
+- **Actions:** `PUT /v1/admin/users/{id}/status` (`active`, `suspended`: can sign in and read but not change anything, `banned`: nothing; their listings stop being for sale either way, and they're emailed), `POST /v1/admin/listings/{id}/remove`, `POST /v1/admin/ratings/{id}/remove` (the average is recalculated), `POST /v1/admin/reports/{id}/resolve` (`actioned` or `dismissed`). Acting on a target closes its open reports.
+- **Issues:** `GET /v1/admin/issues/{id}`, `POST /v1/admin/issues/{id}/messages`, and `POST /v1/admin/issues/{id}/resolve` with `refund_cents` (0 decides for the seller) and a `note` that's posted to the issue and emailed with the outcome.
+- **Log:** every action is in `moderation_actions`; `GET /v1/admin/actions?target_id=` shows them.
+
+## Emails
+
+Emails are written to the `emails` table in the same transaction as what they're about, then sent through [Resend](https://resend.com) right after the request commits; `src/scripts/send_emails.py` (nightly) retries what didn't go, up to `EMAIL_MAX_ATTEMPTS`. Addresses come from Supabase's `auth.users` when sending. Templates are plain text, in `src/services/email/templates.py`: order placed, sold, shipped and refunded; issue opened, message, escalated and resolved; account status changes.
+
+To turn them on:
+
+1. In Resend, add and verify a sending domain (DNS records), then create an API key with sending access.
+2. Store the key: `RESEND_API_KEY=re_… GCP_PROJECT=your-project-id ./deploy/cloudrun-setup.sh`, and set `EMAIL_FROM` (e.g. `MTG Marketplace <orders@yourdomain>`) in `deploy/cloudrun.env.yaml`. Redeploy.
+3. For the nightly retry, add the `RESEND_API_KEY` secret and the `EMAIL_FROM` and `FRONTEND_URL` variables to the `production` environment in GitHub.
+
+Until then emails are marked `skipped`, so turning them on later doesn't send a backlog. Cloud Run slows the CPU between requests, so a background send can wait for the next request; the nightly run catches anything left.
+
 ## Payment testing checklist
 
 The automated tests only use a fake Stripe. Run these by hand in Stripe test mode before relying on payments, first locally (see "Testing payments locally"), then once against the deployed API.
@@ -268,6 +308,8 @@ Locally:
 - [ ] **Declined card:** `4000 0000 0000 0002`. Nothing changes and the checkout stays `open`.
 - [ ] **Shipping pays the seller:** `POST /v1/orders/{id}/ship`. A transfer of `seller_payout_cents` appears under Connect → the seller's account, and the order gets `paid_out_at`.
 - [ ] **Refund:** `POST /v1/orders/{id}/refund` on an unshipped order. The payment shows a partial refund of that order's total. With `PAYOUT_ON=paid`, the transfer is reversed first.
+- [ ] **Partial refund after shipping:** ship an order, open an issue as the buyer, then `POST /v1/issues/{id}/refund` with `amount_cents` as the seller. The payment shows that refund, and the seller's transfer shows a reversal of the same amount (Connect → the seller's account → Transfers).
+- [ ] **Reversal with an empty balance:** repeat once the seller's test balance has been paid out to their bank. Note what Stripe does with the reversal (it may fail, returning 502); if it does, decide how the platform recovers it before launch.
 - [ ] **Cancel:** `POST /v1/checkout/{id}/cancel`. The copies are back on sale and the Stripe page says the session expired.
 - [ ] **Expiry:** leave a checkout unpaid past `CHECKOUT_HOLD_MINUTES`. `checkout.session.expired` arrives (Stripe can take a few minutes) and the copies are back on sale.
 - [ ] **Dispute:** pay with `4000 0000 0000 0259`. The checkout's orders become `disputed`.
@@ -275,7 +317,7 @@ Locally:
 
 Deployed (test mode):
 
-- [ ] **Migration:** the Deploy run's "Migrate database" step ends with `alembic current` showing the newest migration (`0008` now).
+- [ ] **Migration:** the Deploy run's "Migrate database" step ends with `alembic current` showing the newest migration (`0009` now).
 - [ ] **Webhook endpoint and secrets:** created and stored as in "Deployed webhook", then redeployed.
 - [ ] **One real purchase:** repeat seller setup, paying and shipping against the Cloud Run URL. The endpoint's deliveries in the Stripe dashboard all show 200.
 
@@ -284,10 +326,10 @@ Deployed (test mode):
 Decisions and switches to settle before taking real money:
 
 - [ ] **Fees:** `PLATFORM_FEE_PERCENT`, `PLATFORM_FEE_FIXED_CENTS`, `PLATFORM_FEE_MIN_CENTS` (placeholder: 5%, no fixed fee, no minimum). Stripe's own fees come out of the platform's share (2.9% + 30¢ per checkout, plus Connect's per-payout and monthly active-account fees), so check that cheap orders still cover them.
-- [ ] **Payout timing:** `PAYOUT_ON` (`shipped` or `paid`). If sellers are paid on shipping, decide what happens when an order is never shipped (auto-refund after N days).
+- [ ] **Payout timing:** `PAYOUT_ON` (`shipped`, `paid` or `delivered`). `delivered` protects buyers best (refunds never need clawing back) but makes sellers wait up to `AUTO_DELIVER_DAYS`. Also decide what happens when an order is never shipped (auto-refund after N days isn't built).
 - [ ] **Hold time:** `CHECKOUT_HOLD_MINUTES` (30 to 1440).
-- [ ] **Refunds and disputes:** today sellers can fully refund unshipped orders, buyers can't cancel, and disputes are only flagged. Decide on buyer cancellation, partial refunds, refunds after shipping, and who resolves disputes.
-- [ ] **Delivery:** buyers confirm delivery by hand; consider confirming automatically some days after shipping so ratings unlock.
+- [ ] **Refunds and disputes:** issues handle refunds after payment (see "Order issues"); buyers still can't cancel on their own, and bank disputes (chargebacks) are only flagged, to be answered in the Stripe dashboard. Decide the issue windows (`ISSUE_WINDOW_DAYS`, `ISSUE_SELLER_DAYS`, `AUTO_DELIVER_DAYS`), whether the platform should keep its fee on refunds (today it gives it up on a full refund), and whether to handle `charge.dispute.closed`.
+- [ ] **Moderators:** set `is_admin` for whoever will moderate ("Moderation"), and publish rules for what gets listings removed and accounts suspended.
 - [ ] **Sales tax:** check marketplace facilitator rules for where you sell (Stripe Tax or a provider).
 - [ ] **Stripe account:** activate live mode (business details, bank account), set Connect branding, and publish terms of service and a refund policy (Stripe asks for their URLs).
 - [ ] **Live keys:** store the live secret key and a live webhook endpoint's secret (`deploy/cloudrun-setup.sh`), configured with the events listed above.
@@ -298,5 +340,5 @@ Decisions and switches to settle before taking real money:
 - [ ] **Price manipulation:** a seller can buy their own listings from a second account to push a market price up. The median of several sales limits this; before launch, consider ignoring sales between accounts that share a payment card or address, and watching for sellers with many sales to the same buyer.
 - [ ] **Scan photos:** set up the bucket ("Photo bucket"), add the real frontend to its CORS policy, and decide how long photos are kept (the lifecycle rule).
 - [ ] **Hard scans:** an optional paid fallback (sending the photo to a vision model when OCR finds nothing) isn't built; decide whether it's worth the per-scan cost.
-- [ ] **Emails:** order confirmation, "you sold something" and "your order shipped" emails aren't built yet (planned with Resend).
+- [ ] **Emails:** verify a sending domain in Resend and turn emails on ("Emails"). Review the template wording, and check the `emails` table for `failed` rows after launch.
 - [ ] **Webhook monitoring:** if webhooks fail, held copies stay held until Stripe stops retrying (3 days). Watch the endpoint's delivery status in the Stripe dashboard (and Sentry).

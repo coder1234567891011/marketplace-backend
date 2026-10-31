@@ -1,11 +1,16 @@
 # Nightly card catalog sync from Scryfall (src/scripts/scryfall_sync.py),
-# then marketplace prices from recent sales (src/scripts/market_prices.py).
+# then marketplace prices from recent sales (src/scripts/market_prices.py),
+# order upkeep (src/scripts/order_maintenance.py) and retrying unsent emails
+# (src/scripts/send_emails.py).
 #
 # Runs on GitHub's runners rather than Cloud Run, so the ~500 MB download
 # never touches the Cloud Run free tier or wakes the API. Needs, on the
 # "production" environment (Settings → Environments → production):
 #   * secret   DATABASE_URL         the Supabase Session pooler URI
 #   * variable SCRYFALL_USER_AGENT  e.g. "MTGMarketplace/1.0 (you@example.com)" (optional)
+#   * variable PAYOUT_ON, secret STRIPE_SECRET_KEY  for order upkeep; PAYOUT_ON
+#     must match the API's (deploy/cloudrun.env.yaml)
+#   * secret   RESEND_API_KEY, variables EMAIL_FROM and FRONTEND_URL  for emails
 #
 # Run it by hand from the Actions tab (Run workflow) after the first deploy.
 # Scheduled runs only happen on the default branch.
@@ -54,3 +59,23 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python -m scripts.market_prices
+
+      - name: Order upkeep
+        if: ${{ !cancelled() }}
+        working-directory: src
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          PAYOUT_ON: ${{ vars.PAYOUT_ON || 'shipped' }}
+          AUTO_DELIVER_DAYS: ${{ vars.AUTO_DELIVER_DAYS || '21' }}
+        run: python -m scripts.order_maintenance
+
+      - name: Retry emails
+        if: ${{ !cancelled() }}
+        working-directory: src
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+        run: python -m scripts.send_emails

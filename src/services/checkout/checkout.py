@@ -39,8 +39,9 @@ from models.object_models.orders import CheckoutCreate
 from services.addresses.addresses import get_address
 from services.cart.cart import listing_problem, load_cart
 from services.checkout.fees import FeeTerms
+from services.email.outbox import queue_email
 from services.listings.listings import change_status
-from services.orders.orders import TRANSITIONS, change_order_status, pay_out, with_items
+from services.orders.orders import TRANSITIONS, change_order_status, order_email, pay_out, with_items
 from services.payments.stripe_gateway import CheckoutLine, get_gateway
 from services.user.user import require_profile
 from utils.errors import BadRequest, Conflict, NotFound
@@ -306,6 +307,9 @@ async def mark_paid(session: AsyncSession, checkout_id: uuid.UUID, payment_inten
         order.paid_at = now
         await session.execute(update(User).where(User.id == order.seller_id)
                               .values(total_sales=User.total_sales + 1))
+        queue_email(session, order.seller_id, "order_sold", **order_email(order))
+    queue_email(session, checkout.buyer_id, "order_placed", total_cents=checkout.total_cents,
+                currency=checkout.currency, sellers=len(checkout.orders))
     await session.execute(delete(CartItem).where(CartItem.user_id == checkout.buyer_id,
                                                  CartItem.listing_id.in_(list(listings))))
     await session.flush()

@@ -24,7 +24,7 @@ async def get_rating(session: AsyncSession, rating_id: uuid.UUID) -> Rating:
     return rating
 
 
-async def _refresh_rating_stats(session: AsyncSession, user_id: uuid.UUID, role: RatingRole) -> None:
+async def refresh_rating_stats(session: AsyncSession, user_id: uuid.UUID, role: RatingRole) -> None:
     avg, count = (await session.execute(
         select(func.avg(Rating.rating), func.count(Rating.id)).where(Rating.ratee_id == user_id, Rating.role == role)
     )).one()
@@ -58,6 +58,6 @@ async def create_rating(session: AsyncSession, current: CurrentUser, request: Ra
     rating = Rating(rater_id=current.id, ratee_id=ratee_id, role=role, **request.model_dump())
     session.add(rating)
     await session.flush()
-    await _refresh_rating_stats(session, ratee_id, role)
+    await refresh_rating_stats(session, ratee_id, role)
     await session.flush()
     return rating

@@ -2891,6 +2891,865 @@ paths:
                 $ref: '#/components/schemas/Error'
       security:
       - bearerAuth: []
+  /v1/orders/{order_id}/issues:
+    post:
+      tags:
+      - issues
+      summary: Open Issue
+      description: 'Buyer: report a problem with a paid order. The seller is emailed.'
+      operationId: open_issue_v1_orders__order_id__issues_post
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - issues
+      summary: List Order Issues
+      description: An order's issues, newest first (buyer or seller).
+      operationId: list_order_issues_v1_orders__order_id__issues_get
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Order Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IssueRead'
+                title: Response List Order Issues V1 Orders  Order Id  Issues Get
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues:
+    get:
+      tags:
+      - issues
+      summary: List My Issues
+      description: Issues the caller opened as a buyer, or (role=seller) that were opened on their sales.
+      operationId: list_my_issues_v1_issues_get
+      parameters:
+      - name: role
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/IssueRole'
+          default: buyer
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/IssueStatus'
+          - type: 'null'
+          title: Status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_IssueRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}:
+    get:
+      tags:
+      - issues
+      summary: Read Issue
+      operationId: read_issue_v1_issues__issue_id__get
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/messages:
+    post:
+      tags:
+      - issues
+      summary: Add Message
+      operationId: add_message_v1_issues__issue_id__messages_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueMessageCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/refund:
+    post:
+      tags:
+      - issues
+      summary: Refund Issue
+      description: 'Seller: refund all (default) or part of the order, resolving the issue.'
+      operationId: refund_issue_v1_issues__issue_id__refund_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueRefund'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/escalate:
+    post:
+      tags:
+      - issues
+      summary: Escalate Issue
+      description: 'Ask a moderator to decide: the seller any time, the buyer once escalate_after has passed.'
+      operationId: escalate_issue_v1_issues__issue_id__escalate_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/issues/{issue_id}/withdraw:
+    post:
+      tags:
+      - issues
+      summary: Withdraw Issue
+      description: 'Buyer: close the issue without a refund.'
+      operationId: withdraw_issue_v1_issues__issue_id__withdraw_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/reports:
+    post:
+      tags:
+      - reports
+      summary: Report
+      description: Flag a listing, user or rating for the moderators.
+      operationId: report_v1_reports_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - reports
+      summary: List My Reports
+      operationId: list_my_reports_v1_reports_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ReportRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/reports:
+    get:
+      tags:
+      - admin
+      summary: List Reports
+      description: Reports, newest first; open ones by default.
+      operationId: list_reports_v1_admin_reports_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReportStatus'
+          - type: 'null'
+          default: open
+          title: Status
+      - name: target_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReportTarget'
+          - type: 'null'
+          title: Target Type
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ReportAdminRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/reports/{report_id}/resolve:
+    post:
+      tags:
+      - admin
+      summary: Resolve Report
+      description: Close a report. Acting on its target (below) closes its reports as actioned anyway.
+      operationId: resolve_report_v1_admin_reports__report_id__resolve_post
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Report Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportResolve'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportAdminRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/users/{user_id}/status:
+    put:
+      tags:
+      - admin
+      summary: Set Account Status
+      description: Suspend (read-only), ban, or reinstate (active) an account. The user is emailed.
+      operationId: set_account_status_v1_admin_users__user_id__status_put
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/listings/{listing_id}/remove:
+    post:
+      tags:
+      - admin
+      summary: Remove Listing
+      operationId: remove_listing_v1_admin_listings__listing_id__remove_post
+      parameters:
+      - name: listing_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Listing Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationNote'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/ratings/{rating_id}/remove:
+    post:
+      tags:
+      - admin
+      summary: Remove Rating
+      description: Delete a rating (e.g. an abusive comment); the user's average is recalculated.
+      operationId: remove_rating_v1_admin_ratings__rating_id__remove_post
+      parameters:
+      - name: rating_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Rating Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationNote'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues:
+    get:
+      tags:
+      - admin
+      summary: List Issues
+      description: Order issues, newest first; escalated ones by default.
+      operationId: list_issues_v1_admin_issues_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/IssueStatus'
+          - type: 'null'
+          default: escalated
+          title: Status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_IssueRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues/{issue_id}:
+    get:
+      tags:
+      - admin
+      summary: Read Issue
+      operationId: read_issue_v1_admin_issues__issue_id__get
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues/{issue_id}/messages:
+    post:
+      tags:
+      - admin
+      summary: Message Issue
+      description: Ask the buyer or seller something; both are emailed.
+      operationId: message_issue_v1_admin_issues__issue_id__messages_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueMessageCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/issues/{issue_id}/resolve:
+    post:
+      tags:
+      - admin
+      summary: Decide Issue
+      description: 'Decide an issue: refund refund_cents to the buyer (0 for none).'
+      operationId: decide_issue_v1_admin_issues__issue_id__resolve_post
+      parameters:
+      - name: issue_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Issue Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueDecision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueDetail'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /v1/admin/actions:
+    get:
+      tags:
+      - admin
+      summary: List Actions
+      description: The moderation log, newest first, optionally for one user, listing, rating or issue.
+      operationId: list_actions_v1_admin_actions_get
+      parameters:
+      - name: target_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Target Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ModerationActionRead_'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        4XX:
+          description: Error (see Error.code)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
   /health:
     get:
       tags:
@@ -2922,6 +3781,20 @@ components:
       - suspended
       - banned
       title: AccountStatus
+    AccountStatusUpdate:
+      properties:
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+        account_status:
+          $ref: '#/components/schemas/AccountStatus'
+      type: object
+      required:
+      - account_status
+      title: AccountStatusUpdate
     AddressCreate:
       properties:
         label:
@@ -3906,6 +4779,256 @@ components:
       - finish
       - language
       title: ImportedLine
+    IssueCreate:
+      properties:
+        reason:
+          $ref: '#/components/schemas/IssueReason'
+        message:
+          type: string
+          maxLength: 4000
+          minLength: 1
+          title: Message
+      type: object
+      required:
+      - reason
+      - message
+      title: IssueCreate
+    IssueDecision:
+      properties:
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+        refund_cents:
+          type: integer
+          minimum: 0.0
+          title: Refund Cents
+      type: object
+      required:
+      - refund_cents
+      title: IssueDecision
+    IssueDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        order_id:
+          type: string
+          format: uuid
+          title: Order Id
+        buyer_id:
+          type: string
+          format: uuid
+          title: Buyer Id
+        seller_id:
+          type: string
+          format: uuid
+          title: Seller Id
+        reason:
+          $ref: '#/components/schemas/IssueReason'
+        status:
+          $ref: '#/components/schemas/IssueStatus'
+        resolution:
+          anyOf:
+          - $ref: '#/components/schemas/IssueResolution'
+          - type: 'null'
+        refund_cents:
+          type: integer
+          title: Refund Cents
+        escalate_after:
+          type: string
+          format: date-time
+          title: Escalate After
+        escalated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Escalated At
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        messages:
+          items:
+            $ref: '#/components/schemas/IssueMessageRead'
+          type: array
+          title: Messages
+      type: object
+      required:
+      - id
+      - order_id
+      - buyer_id
+      - seller_id
+      - reason
+      - status
+      - resolution
+      - refund_cents
+      - escalate_after
+      - escalated_at
+      - resolved_at
+      - created_at
+      - updated_at
+      - messages
+      title: IssueDetail
+    IssueMessageCreate:
+      properties:
+        body:
+          type: string
+          maxLength: 4000
+          minLength: 1
+          title: Body
+      type: object
+      required:
+      - body
+      title: IssueMessageCreate
+    IssueMessageRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        author_id:
+          type: string
+          format: uuid
+          title: Author Id
+        from_moderator:
+          type: boolean
+          title: From Moderator
+          default: false
+        body:
+          type: string
+          title: Body
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - author_id
+      - body
+      - created_at
+      title: IssueMessageRead
+    IssueRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        order_id:
+          type: string
+          format: uuid
+          title: Order Id
+        buyer_id:
+          type: string
+          format: uuid
+          title: Buyer Id
+        seller_id:
+          type: string
+          format: uuid
+          title: Seller Id
+        reason:
+          $ref: '#/components/schemas/IssueReason'
+        status:
+          $ref: '#/components/schemas/IssueStatus'
+        resolution:
+          anyOf:
+          - $ref: '#/components/schemas/IssueResolution'
+          - type: 'null'
+        refund_cents:
+          type: integer
+          title: Refund Cents
+        escalate_after:
+          type: string
+          format: date-time
+          title: Escalate After
+        escalated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Escalated At
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - order_id
+      - buyer_id
+      - seller_id
+      - reason
+      - status
+      - resolution
+      - refund_cents
+      - escalate_after
+      - escalated_at
+      - resolved_at
+      - created_at
+      - updated_at
+      title: IssueRead
+    IssueReason:
+      type: string
+      enum:
+      - not_received
+      - not_as_described
+      - other
+      title: IssueReason
+    IssueRefund:
+      properties:
+        amount_cents:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Amount Cents
+      type: object
+      title: IssueRefund
+    IssueResolution:
+      type: string
+      enum:
+      - refunded
+      - no_refund
+      - withdrawn
+      title: IssueResolution
+    IssueRole:
+      type: string
+      enum:
+      - buyer
+      - seller
+      title: IssueRole
+    IssueStatus:
+      type: string
+      enum:
+      - open
+      - escalated
+      - resolved
+      title: IssueStatus
     ListingCreate:
       properties:
         card_id:
@@ -4127,6 +5250,64 @@ components:
       - card
       - quantity
       title: MissingItem
+    ModerationActionRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        admin_id:
+          type: string
+          format: uuid
+          title: Admin Id
+        action:
+          $ref: '#/components/schemas/ModerationActionType'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - admin_id
+      - action
+      - target_id
+      - details
+      - note
+      - created_at
+      title: ModerationActionRead
+    ModerationActionType:
+      type: string
+      enum:
+      - set_account_status
+      - remove_listing
+      - remove_rating
+      - resolve_report
+      - resolve_issue
+      title: ModerationActionType
+    ModerationNote:
+      properties:
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+      type: object
+      title: ModerationNote
     OptimizeRequest:
       properties:
         skip_owned:
@@ -4241,6 +5422,9 @@ components:
         seller_payout_cents:
           type: integer
           title: Seller Payout Cents
+        refunded_cents:
+          type: integer
+          title: Refunded Cents
         status:
           $ref: '#/components/schemas/OrderStatus'
         shipping_rate_name:
@@ -4302,6 +5486,7 @@ components:
       - currency
       - platform_fee_cents
       - seller_payout_cents
+      - refunded_cents
       - status
       - shipping_rate_name
       - shipping_address
@@ -4373,6 +5558,22 @@ components:
       required:
       - items
       title: Page[CollectionItemRead]
+    Page_IssueRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/IssueRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[IssueRead]
     Page_ListingRead_:
       properties:
         items:
@@ -4389,6 +5590,22 @@ components:
       required:
       - items
       title: Page[ListingRead]
+    Page_ModerationActionRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ModerationActionRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ModerationActionRead]
     Page_OrderRead_:
       properties:
         items:
@@ -4421,6 +5638,38 @@ components:
       required:
       - items
       title: Page[RatingRead]
+    Page_ReportAdminRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ReportAdminRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ReportAdminRead]
+    Page_ReportRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ReportRead'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: Page[ReportRead]
     Page_ScanRead_:
       properties:
         items:
@@ -4607,6 +5856,172 @@ components:
       - manual
       - failed
       title: RecognitionStatus
+    ReportAdminRead:
+      properties:
+        target_type:
+          $ref: '#/components/schemas/ReportTarget'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        details:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Details
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        reporter_id:
+          type: string
+          format: uuid
+          title: Reporter Id
+        resolved_by:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Resolved By
+        resolution_note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resolution Note
+      type: object
+      required:
+      - target_type
+      - target_id
+      - reason
+      - id
+      - status
+      - resolved_at
+      - created_at
+      - reporter_id
+      - resolved_by
+      - resolution_note
+      title: ReportAdminRead
+    ReportCreate:
+      properties:
+        target_type:
+          $ref: '#/components/schemas/ReportTarget'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        details:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Details
+      type: object
+      required:
+      - target_type
+      - target_id
+      - reason
+      title: ReportCreate
+    ReportRead:
+      properties:
+        target_type:
+          $ref: '#/components/schemas/ReportTarget'
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        details:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Details
+        id:
+          type: string
+          format: uuid
+          title: Id
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - target_type
+      - target_id
+      - reason
+      - id
+      - status
+      - resolved_at
+      - created_at
+      title: ReportRead
+    ReportReason:
+      type: string
+      enum:
+      - counterfeit
+      - misdescribed
+      - scam
+      - harassment
+      - spam
+      - other
+      title: ReportReason
+    ReportResolve:
+      properties:
+        status:
+          type: string
+          enum:
+          - actioned
+          - dismissed
+          title: Status
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - status
+      title: ReportResolve
+    ReportStatus:
+      type: string
+      enum:
+      - open
+      - actioned
+      - dismissed
+      title: ReportStatus
+    ReportTarget:
+      type: string
+      enum:
+      - listing
+      - user
+      - rating
+      title: ReportTarget
     SaleRead:
       properties:
         condition:

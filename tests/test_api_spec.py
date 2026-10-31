@@ -34,4 +34,4 @@ async def test_postman_examples_pass_validation(client: AsyncClient, make_user) 
                                         content=body.encode() if body else None)
             assert resp.status_code != 422, f"{entry['name']}: {resp.text}"
             sent += 1
-    assert sent == 75
+    assert sent == 95

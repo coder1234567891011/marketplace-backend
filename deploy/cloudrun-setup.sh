@@ -9,8 +9,8 @@
 #   * the Artifact Registry repository for API images, with a cleanup policy
 #   * the API's own runtime service account, which can read only its secrets
 #     (instead of the default compute account, which has Editor on the project)
-#   * the database-url, sentry-dsn, stripe-secret-key, stripe-webhook-secret and
-#     storage-secret-access-key secrets
+#   * the database-url, sentry-dsn, stripe-secret-key, stripe-webhook-secret,
+#     storage-secret-access-key and resend-api-key secrets
 #
 # Safe to re-run: existing secrets get a new version instead of failing.
 set -euo pipefail
@@ -82,6 +82,10 @@ fi
 # settings are in cloudrun.env.yaml.
 if [ -n "${STORAGE_SECRET_ACCESS_KEY:-}" ]; then
   put_secret storage-secret-access-key "$STORAGE_SECRET_ACCESS_KEY"
+fi
+# Emails are recorded as skipped until this exists; EMAIL_FROM is in cloudrun.env.yaml.
+if [ -n "${RESEND_API_KEY:-}" ]; then
+  put_secret resend-api-key "$RESEND_API_KEY"
 fi
 
 echo "Done. Next: GCP_PROJECT=$GCP_PROJECT ./deploy/github-deploy-setup.sh (deploys from GitHub),"

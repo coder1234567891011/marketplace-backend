@@ -349,7 +349,7 @@ async def test_payout_when_paid(client: AsyncClient, make_user, make_card, fake_
 
     # Refunding takes the seller's transfer back first.
     await client.post(f"/v1/orders/{b_order['id']}/refund", headers=as_user(s["bob"]))
-    assert fake_stripe.reversed == [fake_stripe.transfers[b_order["id"]]["id"]]
+    assert fake_stripe.reversed == [(fake_stripe.transfers[b_order["id"]]["id"], 950)]
 
 
 async def test_failed_payout_keeps_order_unshipped(client: AsyncClient, make_user, make_card,
