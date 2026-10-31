@@ -101,10 +101,10 @@ Payments use Stripe: Checkout (Stripe's hosted payment page) and Connect Express
 
 ### Testing payments locally
 
-Put test keys in `src/.env`: `STRIPE_SECRET_KEY=sk_test_…`, plus the `whsec_…` secret that `stripe listen` prints as `STRIPE_WEBHOOK_SECRET`. Then, with the API running on port 8000:
+Put test keys in `src/.env`: `STRIPE_SECRET_KEY=sk_test_…`, plus the `whsec_…` secret that `stripe listen` prints as `STRIPE_WEBHOOK_SECRET`. Then, with the API running on port 8000 (newer Stripe CLIs need the events listed):
 
 ```bash
-stripe listen --forward-to localhost:8000/v1/stripe/webhook --forward-connect-to localhost:8000/v1/stripe/webhook
+stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.expired,charge.dispute.created,account.updated --forward-to localhost:8000/v1/stripe/webhook --forward-connect-to localhost:8000/v1/stripe/webhook
 ```
 
 Pay on the checkout page with card `4242 4242 4242 4242`, any future date and any CVC. Test-mode sellers can finish onboarding with Stripe's test values (for example SSN `000-00-0000`). The automated tests use an in-memory fake (`tests/fake_stripe.py`) and never call Stripe.

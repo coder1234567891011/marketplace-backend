@@ -3,7 +3,7 @@ Seller onboarding with Stripe Connect (Express accounts). Stripe hosts the
 onboarding forms (identity, bank account); a seller's listings can be bought
 once their account can receive transfers (users.stripe_connect_onboarded).
 """
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import CurrentUser
@@ -29,7 +29,11 @@ async def start_onboarding(session: AsyncSession, current: CurrentUser) -> str:
     """A link to Stripe's onboarding forms, creating the seller's account on
     first use. Links expire after a few minutes, so fetch one right before
     redirecting."""
-    user = await require_profile(session, current)
+    await require_profile(session, current)
+    # Lock the profile so two requests at once can't both create an account.
+    user = await session.scalar(select(User).where(User.id == current.id).with_for_update()
+                                .execution_options(populate_existing=True))
+    assert user is not None
     gateway = get_gateway()
     if user.stripe_connect_account_id is None:
         user.stripe_connect_account_id = await gateway.create_account(str(user.id), current.email)

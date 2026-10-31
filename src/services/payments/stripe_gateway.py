@@ -90,8 +90,11 @@ class StripeGateway:
         }
         if email:
             params["email"] = email
-        account = await self._call(self._client.v1.accounts.create_async(
-            params, {"idempotency_key": f"account-{user_id}"}))
+        # No fixed idempotency key: Stripe replays the first response to a key
+        # for 24 hours, errors included, so one refusal (e.g. Connect not set
+        # up yet) would block the seller for a day. Duplicates are prevented by
+        # locking the user's row instead (services/sellers).
+        account = await self._call(self._client.v1.accounts.create_async(params))
         return str(account.id)
 
     async def onboarding_link(self, account_id: str, refresh_url: str, return_url: str) -> str:
